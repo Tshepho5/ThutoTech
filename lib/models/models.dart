@@ -379,7 +379,7 @@ class ApplicationLearner {
   final String? firstAdditionalLanguage;
   final String? stream;
   final String previousSchool;
-  final String documentName;
+  final String? documentName;
   final bool documentVerified;
 
   ApplicationLearner({
@@ -395,7 +395,7 @@ class ApplicationLearner {
     this.firstAdditionalLanguage = 'Afrikaans',
     this.stream,
     required this.previousSchool,
-    this.documentName = 'Learner_ID_Document.pdf',
+    this.documentName,
     this.documentVerified = false,
   });
 
@@ -413,7 +413,7 @@ class AdmissionApplication {
   final String primaryParentIdNumber;
   final String? primaryParentGender;
   final DateTime? primaryParentDob;
-  final String primaryParentDocumentName;
+  final String? primaryParentDocumentName;
   // Optional Secondary Parent
   final bool hasSecondaryParent;
   final String? secondaryParentName;
@@ -454,7 +454,7 @@ class AdmissionApplication {
     this.primaryParentPassword,
     this.primaryParentGender,
     this.primaryParentDob,
-    this.primaryParentDocumentName = 'Primary_Parent_ID.pdf',
+    this.primaryParentDocumentName,
     this.hasSecondaryParent = false,
     this.secondaryParentName,
     this.secondaryParentSurname,

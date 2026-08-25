@@ -269,7 +269,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       formSurname: _primarySurnameCtrl.text,
       formIdNumber: _primaryIdCtrl.text,
       formGender: _primaryIdInfo?.gender,
-      fileName: _parentDocName ?? 'Primary_Parent_SA_ID.pdf',
+      fileName: _parentDocName ?? '',
     );
 
     // 2. Verify Secondary Parent if present
@@ -280,7 +280,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         formSurname: _secSurnameCtrl.text,
         formIdNumber: _secIdCtrl.text,
         formGender: _secIdInfo?.gender,
-        fileName: _secParentDocName ?? 'Secondary_Parent_ID.pdf',
+        fileName: _secParentDocName ?? '',
       );
     }
 
@@ -292,7 +292,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         formSurname: l.surnameCtrl.text,
         formIdNumber: l.idCtrl.text,
         formGender: l.idInfo?.gender,
-        fileName: l.documentName ?? 'Learner_ID_Copy.pdf',
+        fileName: l.documentName ?? '',
       );
       l.aiResult = lRes;
       learnerResults.add(lRes);
@@ -353,7 +353,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         firstAdditionalLanguage: l.selectedFal,
         stream: isFet ? l.selectedStream : null,
         previousSchool: l.prevSchoolCtrl.text.trim().isEmpty ? 'Not Specified' : l.prevSchoolCtrl.text.trim(),
-        documentName: l.documentName ?? 'Learner_ID_Copy.pdf',
+        documentName: l.documentName,
         documentVerified: isAiApproved,
       );
     }).toList();
@@ -367,7 +367,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       primaryParentIdNumber: _primaryIdCtrl.text.trim(),
       primaryParentGender: _primaryIdInfo?.gender,
       primaryParentDob: _primaryIdInfo?.dateOfBirth,
-      primaryParentDocumentName: _parentDocName ?? 'Primary_Parent_SA_ID.pdf',
+      primaryParentDocumentName: _parentDocName,
       hasSecondaryParent: _hasSecondaryParent,
       secondaryParentName: _hasSecondaryParent ? _secNameCtrl.text.trim() : null,
       secondaryParentSurname: _hasSecondaryParent ? _secSurnameCtrl.text.trim() : null,
@@ -605,6 +605,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                 // Parent ID Upload Card with Native File Picker
                 _buildUploadPicker(
                   label: 'Upload Primary Parent SA ID Copy *',
+                  supportingDocInfo: 'Attach a certified copy of the parent/guardian South African Green ID Book or Smart ID Card (PDF, PNG, JPG).',
                   fileName: _parentDocName,
                   fileSize: _parentFileSizeString,
                   icon: Icons.upload_file_rounded,
@@ -735,10 +736,12 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                         ),
                         _buildUploadPicker(
                           label: 'Upload Secondary Parent ID Copy',
+                          supportingDocInfo: 'Attach a copy of the secondary parent/guardian South African ID document (PDF, PNG, JPG).',
                           fileName: _secParentDocName,
                           fileSize: _secParentFileSizeString,
                           icon: Icons.upload_file_rounded,
                           onPick: _pickSecondaryParentDocument,
+                          isRequired: false,
                         ),
                         const SizedBox(height: 12),
                         ValidatedTextField(
@@ -867,6 +870,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                         // Learner Document Upload Picker
                         _buildUploadPicker(
                           label: 'Upload Learner Birth Certificate / Smart ID *',
+                          supportingDocInfo: 'Attach the official DHA Unabridged Birth Certificate (with ID number) or Smart ID Card (PDF, PNG, JPG).',
                           fileName: l.documentName,
                           fileSize: l.fileSizeString,
                           icon: Icons.document_scanner_rounded,
@@ -1038,6 +1042,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
     required String label,
     required String? fileName,
     String? fileSize,
+    String? supportingDocInfo,
     required IconData icon,
     required VoidCallback onPick,
     bool isRequired = true,
@@ -1054,67 +1059,82 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
           width: hasFile ? 1.5 : 1.0,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            hasFile ? Icons.check_circle_rounded : icon,
-            color: hasFile ? AppTheme.primaryGreen : AppTheme.primaryNavy,
-            size: 24,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12)),
-                const SizedBox(height: 3),
-                Row(
+          Row(
+            children: [
+              Icon(
+                hasFile ? Icons.check_circle_rounded : icon,
+                color: hasFile ? AppTheme.primaryGreen : AppTheme.primaryNavy,
+                size: 24,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        hasFile ? fileName : 'No document selected yet',
-                        style: GoogleFonts.outfit(
-                          fontSize: 11,
-                          color: hasFile ? AppTheme.primaryNavy : AppTheme.textMuted,
-                          fontWeight: hasFile ? FontWeight.bold : FontWeight.normal,
-                          fontStyle: hasFile ? FontStyle.normal : FontStyle.italic,
+                    Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12)),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            hasFile ? fileName : 'No document selected yet',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              color: hasFile ? AppTheme.primaryNavy : AppTheme.textMuted,
+                              fontWeight: hasFile ? FontWeight.bold : FontWeight.normal,
+                              fontStyle: hasFile ? FontStyle.normal : FontStyle.italic,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: (hasFile ? AppTheme.primaryGreen : Colors.orange.shade800).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        hasFile ? (fileSize ?? 'Attached ✓') : (isRequired ? 'Required *' : 'Optional'),
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: hasFile ? AppTheme.primaryGreen : Colors.orange.shade800,
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: (hasFile ? AppTheme.primaryGreen : Colors.orange.shade800).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            hasFile ? (fileSize ?? 'Attached ✓') : (isRequired ? 'Required *' : 'Optional'),
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: hasFile ? AppTheme.primaryGreen : Colors.orange.shade800,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: onPick,
+                icon: Icon(hasFile ? Icons.refresh_rounded : Icons.folder_open_rounded, size: 14),
+                label: Text(hasFile ? 'Change' : 'Browse', style: const TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: hasFile ? AppTheme.primaryGreen : AppTheme.primaryNavy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: const Size(80, 32),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: onPick,
-            icon: Icon(hasFile ? Icons.refresh_rounded : Icons.folder_open_rounded, size: 14),
-            label: Text(hasFile ? 'Change' : 'Browse', style: const TextStyle(fontSize: 11)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: hasFile ? AppTheme.primaryGreen : AppTheme.primaryNavy,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              minimumSize: const Size(80, 32),
+          if (supportingDocInfo != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 34),
+              child: Text(
+                'ℹ️ $supportingDocInfo',
+                style: GoogleFonts.outfit(fontSize: 10.5, color: AppTheme.textMuted, fontStyle: FontStyle.italic),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

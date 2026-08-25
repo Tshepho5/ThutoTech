@@ -354,7 +354,7 @@ class MockDatabase extends ChangeNotifier {
     required String primaryParentIdNumber,
     String? primaryParentGender,
     DateTime? primaryParentDob,
-    String primaryParentDocumentName = 'Primary_Parent_ID.pdf',
+    String? primaryParentDocumentName,
     required bool hasSecondaryParent,
     String? secondaryParentName,
     String? secondaryParentSurname,
@@ -399,7 +399,7 @@ class MockDatabase extends ChangeNotifier {
               firstAdditionalLanguage: firstAdditionalLanguage ?? 'Afrikaans',
               stream: stream,
               previousSchool: previousSchool ?? 'Not Specified',
-              documentName: 'Learner_ID_Document.pdf',
+              documentName: null,
               documentVerified: documentVerified,
             )
           ];
