@@ -59,6 +59,20 @@ class SAIdParser {
       final citizenCode = int.parse(id.substring(10, 11));
       final isCitizen = citizenCode == 0;
 
+      // Luhn Checksum validation (MOD 10)
+      final isLuhnValid = validateLuhnChecksum(id);
+      if (!isLuhnValid) {
+        return SAIdInfo(
+          isValid: false,
+          dateOfBirth: dob,
+          formattedDob: DateFormat('dd MMMM yyyy').format(dob),
+          age: age,
+          gender: gender,
+          isCitizen: isCitizen,
+          error: 'South African ID failed Luhn mathematical checksum validation (Invalid 13th Check Digit).',
+        );
+      }
+
       return SAIdInfo(
         isValid: true,
         dateOfBirth: dob,
@@ -69,6 +83,25 @@ class SAIdParser {
       );
     } catch (_) {
       return SAIdInfo(isValid: false, error: 'Could not parse ID details');
+    }
+  }
+
+  /// Validates South African National ID checksum using the official Luhn Algorithm (MOD 10)
+  static bool validateLuhnChecksum(String id) {
+    if (id.length != 13) return false;
+    try {
+      int sum = 0;
+      for (int i = 0; i < 13; i++) {
+        int digit = int.parse(id[i]);
+        if (i % 2 == 1) {
+          digit *= 2;
+          if (digit > 9) digit -= 9;
+        }
+        sum += digit;
+      }
+      return sum % 10 == 0;
+    } catch (_) {
+      return false;
     }
   }
 
