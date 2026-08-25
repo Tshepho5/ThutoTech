@@ -34,24 +34,22 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Serve Flutter Web if build directory exists
+// Serve Modern TSX/React Web App
 const candidates = [
   path.resolve(__dirname, '../public'),
   path.resolve(__dirname, '../../public'),
+  path.resolve(process.cwd(), 'backend/public'),
   path.resolve(process.cwd(), 'public'),
-  path.resolve(process.cwd(), '../public'),
+  path.resolve(process.cwd(), '../backend/public'),
   path.resolve(__dirname, '../../build/web'),
-  path.resolve(__dirname, '../build/web'),
-  path.resolve(__dirname, '../../../build/web'),
   path.resolve(process.cwd(), 'build/web'),
-  path.resolve(process.cwd(), '../build/web'),
 ];
 
 let webDir: string | null = null;
 for (const cand of candidates) {
   if (fs.existsSync(cand)) {
     webDir = cand;
-    console.log(`🌐 Found Flutter Web Build directory at: ${webDir}`);
+    console.log(`🌐 Serving Modern ThutoTech Web App from: ${webDir}`);
     break;
   }
 }
