@@ -134,14 +134,9 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Authentication failed.');
       }
 
-      // 2. Check Two-Factor Authentication (2FA) for protected roles
-      if (authenticatedUser.twoFactorEnabled) {
-        setState(() => _isLoading = false);
-        await _promptTwoFactorOtpDialog(authenticatedUser);
-      } else {
-        setState(() => _isLoading = false);
-        widget.onLoginSuccess();
-      }
+      // Direct login without 2FA prompt
+      setState(() => _isLoading = false);
+      widget.onLoginSuccess();
     } catch (e) {
       if (!mounted) return;
       setState(() {

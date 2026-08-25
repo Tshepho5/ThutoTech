@@ -111,7 +111,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onL
   const [systemSettings, setSystemSettings] = useState({
     smtpEmailEnabled: true,
     admissionsOpen: true,
-    twoFactorEnforced: true,
+    twoFactorEnforced: false,
     maintenanceMode: false,
     sessionTimeoutMinutes: 30,
   });
