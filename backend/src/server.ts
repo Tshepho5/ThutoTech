@@ -36,15 +36,18 @@ app.get('/health', (req, res) => {
 
 // Serve Flutter Web if build directory exists
 const candidates = [
-  path.join(__dirname, '../../build/web'),
-  path.join(__dirname, '../build/web'),
-  path.join(process.cwd(), 'build/web'),
+  path.resolve(__dirname, '../../build/web'),
+  path.resolve(__dirname, '../build/web'),
+  path.resolve(__dirname, '../../../build/web'),
+  path.resolve(process.cwd(), 'build/web'),
+  path.resolve(process.cwd(), '../build/web'),
 ];
 
 let webDir: string | null = null;
 for (const cand of candidates) {
   if (fs.existsSync(cand)) {
     webDir = cand;
+    console.log(`🌐 Found Flutter Web Build directory at: ${webDir}`);
     break;
   }
 }
@@ -58,9 +61,35 @@ if (webDir) {
     res.sendFile(path.join(webDir!, 'index.html'));
   });
 } else {
-  // Fallback Root Info Endpoint
+  // If Flutter web build is compiling or not built yet, render a rich landing page
   app.get('/', (req, res) => {
-    res.redirect('/api/v1');
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ThutoTech - Learn • Connect • Empower</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+          body { margin: 0; background: #0B192C; color: white; font-family: 'Outfit', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
+          .card { background: #0F172A; padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); max-width: 500px; margin: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+          h1 { color: #16C47F; margin-bottom: 8px; }
+          p { color: #94A3B8; font-size: 14px; line-height: 1.6; }
+          .btn { display: inline-block; background: #16C47F; color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+          .badge { display: inline-block; background: rgba(22, 196, 127, 0.15); color: #16C47F; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: bold; margin-bottom: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="badge">🚀 ThutoTech Ecosystem Online</div>
+          <h1>ThutoTech</h1>
+          <p>The Flutter Web application is ready. Run <code>flutter build web --release</code> to update the static web bundle, or explore the backend API below.</p>
+          <a href="/api/v1" class="btn">Explore API Documentation</a>
+        </div>
+      </body>
+      </html>
+    `);
   });
 }
 

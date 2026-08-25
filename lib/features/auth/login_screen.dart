@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/mock_database.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
+import '../../widgets/app_download_modal.dart';
 import '../admissions/admission_application_screen.dart';
 import '../admissions/registration_screen.dart';
 import 'forgot_password_screen.dart';
@@ -27,6 +28,17 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
   int? _lockoutSecondsRemaining;
   Timer? _lockoutTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-pop the Download App dialog upon device access
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AppDownloadModal.show(context);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -341,6 +353,26 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppTheme.secondaryNavy.withOpacity(0.3),
+              ),
+            ),
+          ),
+
+          // Top-Right Download App Button
+          Positioned(
+            top: 20,
+            right: 20,
+            child: ElevatedButton.icon(
+              onPressed: () => AppDownloadModal.show(context),
+              icon: const Icon(Icons.download_rounded, size: 16, color: Colors.black),
+              label: Text(
+                'Get App 📲',
+                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 4,
               ),
             ),
           ),
