@@ -449,10 +449,10 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                     ),
                     if (isAiApproved) ...[
                       const Divider(height: 16),
-                      Text('Parent Portal Sign-In Credentials:', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryNavy)),
+                      Text('Parent Portal Account Activated:', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryNavy)),
                       const SizedBox(height: 4),
-                      Text('• Username / Email: ${_primaryEmailCtrl.text}', style: GoogleFonts.outfit(fontSize: 12)),
-                      Text('• Password: ${_primaryPasswordCtrl.text.isNotEmpty ? _primaryPasswordCtrl.text : "Password chosen in Step 1"}', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen)),
+                      Text('• Sign-in Email: ${_primaryEmailCtrl.text}', style: GoogleFonts.outfit(fontSize: 12)),
+                      Text('• Password: •••••••••••• (Encrypted & Active)', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen)),
                     ],
                   ],
                 ),

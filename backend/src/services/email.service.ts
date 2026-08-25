@@ -12,23 +12,30 @@ export class EmailService {
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
     const isGmail = smtpHost.includes('gmail') || smtpUser.includes('gmail');
+    const cleanPass = smtpPass.replace(/\s+/g, '');
 
     this.transporter = isGmail
       ? nodemailer.createTransport({
           service: 'gmail',
           auth: {
             user: smtpUser,
-            pass: smtpPass,
+            pass: cleanPass,
+          },
+          tls: {
+            rejectUnauthorized: false,
           },
         })
       : nodemailer.createTransport({
           host: smtpHost,
           port: smtpPort,
           secure: smtpPort === 465,
-          connectionTimeout: 8000,
+          connectionTimeout: 10000,
           auth: {
             user: smtpUser,
-            pass: smtpPass,
+            pass: cleanPass,
+          },
+          tls: {
+            rejectUnauthorized: false,
           },
         });
 

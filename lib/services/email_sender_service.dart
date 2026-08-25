@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class EmailSenderService {
-  static String get baseUrl {
-    if (kIsWeb && !kDebugMode) {
-      return '/api/v1';
+  static Uri _getEndpoint(String path) {
+    if (kIsWeb) {
+      final base = Uri.base;
+      final portPart = base.hasPort && base.port != 80 && base.port != 443 ? ':${base.port}' : '';
+      return Uri.parse('${base.scheme}://${base.host}$portPart/api/v1$path');
     }
-    return 'http://localhost:5000/api/v1';
+    return Uri.parse('http://localhost:5000/api/v1$path');
   }
 
   static Map<String, String> get _headers => {
@@ -28,9 +30,11 @@ class EmailSenderService {
     required String registrationToken,
   }) async {
     try {
+      final endpoint = _getEndpoint('/emails/send-admission-approval');
+      debugPrint('✉️ [EmailSenderService] Dispatching admission approval email to $endpoint for $recipientEmail...');
       final response = await http
           .post(
-            Uri.parse('$baseUrl/emails/send-admission-approval'),
+            endpoint,
             headers: _headers,
             body: jsonEncode({
               'recipientEmail': recipientEmail,
@@ -45,7 +49,7 @@ class EmailSenderService {
               'registrationToken': registrationToken,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -73,9 +77,11 @@ class EmailSenderService {
     required String generatedPassword,
   }) async {
     try {
+      final endpoint = _getEndpoint('/emails/send-registration-success');
+      debugPrint('✉️ [EmailSenderService] Dispatching registration credentials email to $endpoint for $recipientEmail...');
       final response = await http
           .post(
-            Uri.parse('$baseUrl/emails/send-registration-success'),
+            endpoint,
             headers: _headers,
             body: jsonEncode({
               'recipientEmail': recipientEmail,
@@ -88,7 +94,7 @@ class EmailSenderService {
               'generatedPassword': generatedPassword,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -112,9 +118,10 @@ class EmailSenderService {
     String? resetLink,
   }) async {
     try {
+      final endpoint = _getEndpoint('/emails/send-otp');
       final response = await http
           .post(
-            Uri.parse('$baseUrl/emails/send-otp'),
+            endpoint,
             headers: _headers,
             body: jsonEncode({
               'recipientEmail': recipientEmail,
@@ -123,7 +130,7 @@ class EmailSenderService {
               'resetLink': resetLink ?? '',
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -149,9 +156,10 @@ class EmailSenderService {
     String? fromName,
   }) async {
     try {
+      final endpoint = _getEndpoint('/emails/send-custom');
       final response = await http
           .post(
-            Uri.parse('$baseUrl/emails/send-custom'),
+            endpoint,
             headers: _headers,
             body: jsonEncode({
               'recipientEmail': recipientEmail,
@@ -162,7 +170,7 @@ class EmailSenderService {
               'fromName': fromName,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
