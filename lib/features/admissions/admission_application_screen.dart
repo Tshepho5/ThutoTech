@@ -8,6 +8,7 @@ import '../../core/utils/sa_id_parser.dart';
 import '../../core/validation/input_validators.dart';
 import '../../data/mock_database.dart';
 import '../../models/models.dart';
+import '../../services/api_service.dart';
 import '../../widgets/password_strength_meter.dart';
 
 class _LearnerFormEntry {
@@ -381,13 +382,40 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       documentVerified: isAiApproved,
     );
 
-    // If AI approved, automatically pre-approve admission and dispatch approval email
+    // 1. Sync Application directly to PostgreSQL Database
+    ApiService.applyForAdmission(
+      primaryParentName: _primaryNameCtrl.text.trim(),
+      primaryParentSurname: _primarySurnameCtrl.text.trim(),
+      primaryParentPhone: _primaryPhoneCtrl.text.trim(),
+      primaryParentEmail: _primaryEmailCtrl.text.trim(),
+      primaryParentIdNumber: _primaryIdCtrl.text.trim(),
+      hasSecondaryParent: _hasSecondaryParent,
+      secondaryParentName: _hasSecondaryParent ? _secNameCtrl.text.trim() : null,
+      secondaryParentSurname: _hasSecondaryParent ? _secSurnameCtrl.text.trim() : null,
+      secondaryParentPhone: _hasSecondaryParent ? _secPhoneCtrl.text.trim() : null,
+      secondaryParentEmail: _hasSecondaryParent ? _secEmailCtrl.text.trim() : null,
+      secondaryParentIdNumber: _hasSecondaryParent ? _secIdCtrl.text.trim() : null,
+      learners: applicationLearnersList.map((l) => {
+        'learnerName': l.learnerName,
+        'learnerSurname': l.learnerSurname,
+        'learnerIdNumber': l.learnerIdNumber,
+        'gradeApplyingFor': l.gradeApplyingFor,
+        'homeLanguage': l.homeLanguage,
+        'stream': l.stream,
+        'previousSchool': l.previousSchool,
+        'documentName': l.documentName,
+        'documentVerified': l.documentVerified,
+      }).toList(),
+    );
+
+    // 2. If AI approved, automatically pre-approve admission and dispatch approval email
     if (isAiApproved) {
       widget.db.approveAdmission(application.id);
     } else {
       widget.db.rejectAdmission(application.id, reason: 'AI Document Verification detected mismatch with South African National ID register.');
     }
 
+    // 3. Display Confidential Confirmation Dialog (No Personal Credentials Revealed)
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -396,14 +424,14 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         title: Row(
           children: [
             Icon(
-              isAiApproved ? Icons.check_circle_rounded : Icons.cancel_rounded,
+              isAiApproved ? Icons.mark_email_read_rounded : Icons.cancel_rounded,
               color: isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed,
               size: 28,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isAiApproved ? 'Admission & ID Verification Accepted!' : 'Application Rejected by AI Verification',
+                isAiApproved ? 'Application Processed & Emailed!' : 'Verification Notice Sent',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ),
@@ -414,55 +442,59 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                isAiApproved
-                    ? 'Your admission application for ${application.learners.length} learner(s) and South African ID documents have been verified.'
-                    : 'Your application could not be verified against the official South African National ID register.',
-                style: GoogleFonts.outfit(fontSize: 13),
-              ),
-              const SizedBox(height: 14),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: (isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: (isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed).withOpacity(0.3)),
+                  color: AppTheme.primaryNavy.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.primaryNavy.withOpacity(0.12)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Application Ref: ${application.applicationNumber}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 6),
-                    Text('Applying for ${application.learners.length} Child(ren):', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ...application.learners.map((l) => Padding(
-                          padding: const EdgeInsets.only(top: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Application Reference:', style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: AppTheme.primaryGreen.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
                           child: Text(
-                            '• ${l.learnerName} ${l.learnerSurname} (${l.gradeApplyingFor} - ${l.homeLanguage}${l.stream != null ? " • ${l.stream}" : ""})',
-                            style: GoogleFonts.outfit(fontSize: 12),
+                            application.applicationNumber,
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, fontSize: 12),
                           ),
-                        )),
-                    const SizedBox(height: 8),
-                    Text(
-                      'AI Match Status: ${isAiApproved ? "100% Validated (SA Biometric Match)" : "Discrepancy Detected"}',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed, fontSize: 12),
+                        ),
+                      ],
                     ),
-                    if (isAiApproved) ...[
-                      const Divider(height: 16),
-                      Text('Parent Portal Account Activated:', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryNavy)),
-                      const SizedBox(height: 4),
-                      Text('• Sign-in Email: ${_primaryEmailCtrl.text}', style: GoogleFonts.outfit(fontSize: 12)),
-                      Text('• Password: •••••••••••• (Encrypted & Active)', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen)),
-                    ],
+                    const Divider(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.shield_outlined, color: AppTheme.primaryGreen, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Identity & Privacy Protected', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primaryNavy)),
+                              const SizedBox(height: 4),
+                              Text(
+                                'To protect your privacy and sensitive identity credentials, all admission decisions, registration tokens, and login details have been dispatched exclusively to your verified email address.',
+                                style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.secondaryNavy, height: 1.4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 14),
               Text(
-                isAiApproved
-                    ? '✉️ A real ADMISSION ACCEPTANCE EMAIL with your registration token (${application.registrationToken}) has been dispatched to ${_primaryEmailCtrl.text} via Gmail SMTP.'
-                    : '✉️ An automated REJECTION NOTICE with details regarding the document mismatch has been sent to ${_primaryEmailCtrl.text}.',
-                style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.secondaryNavy, height: 1.4),
+                '📬 Please check your email inbox (and spam/junk folder) for your official notification.',
+                style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted, fontStyle: FontStyle.italic),
               ),
             ],
           ),

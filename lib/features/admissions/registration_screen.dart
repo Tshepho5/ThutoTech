@@ -121,51 +121,32 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy,
+                    color: const Color(0xFF0B192C),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Official Learner Credentials Generated:', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                      Row(
+                        children: [
+                          const Icon(Icons.shield_rounded, color: AppTheme.primaryGreen, size: 22),
+                          const SizedBox(width: 8),
+                          Text('Confidential Credential Delivery', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
                       const Divider(color: Colors.white24, height: 16),
-                      if (creds["learners"] != null && (creds["learners"] as List).isNotEmpty) ...[
-                        ...(creds["learners"] as List).map((l) => Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('${l["learnerName"]} ${l["learnerSurname"]}', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  const SizedBox(height: 4),
-                                  Text('Student No: ${l["learnerNumber"]}', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  Text('Login Email: ${l["learnerEmail"]}', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 11)),
-                                  Text('Initial Password: •••••••••••• (Sent to Email)', style: GoogleFonts.outfit(color: AppTheme.primaryGreen, fontWeight: FontWeight.w600, fontSize: 11)),
-                                ],
-                              ),
-                            )),
-                      ] else ...[
-                        Text('Student Number: ${creds["learnerNumber"]}', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 4),
-                        Text('Learner Login Email: ${creds["learnerEmail"]}', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12)),
-                        const SizedBox(height: 4),
-                        Text('Initial Password: •••••••••••• (Sent to Email)', style: GoogleFonts.outfit(color: AppTheme.primaryGreen, fontWeight: FontWeight.w600, fontSize: 12)),
-                      ],
-                      const SizedBox(height: 6),
                       Text(
-                        '🔒 For identity security, initial passwords are delivered directly to your parent email.',
-                        style: GoogleFonts.outfit(color: Colors.white70, fontSize: 10, fontStyle: FontStyle.italic),
+                        'All official student login credentials, institutional emails, and access keys have been encrypted and sent directly to your registered parent email address.',
+                        style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12, height: 1.4),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '📬 Please check your email inbox to view your credentials and sign in.',
+                        style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-                  child: Text('Parent Login Email: ${_parentEmailCtrl.text}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
