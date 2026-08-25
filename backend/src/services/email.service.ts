@@ -12,6 +12,9 @@ export class EmailService {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: Number(process.env.SMTP_PORT) || 587,
         secure: Number(process.env.SMTP_PORT) === 465,
+        connectionTimeout: 4000, // 4s timeout for restricted network firewalls
+        greetingTimeout: 4000,
+        socketTimeout: 5000,
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
