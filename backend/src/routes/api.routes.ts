@@ -3,6 +3,7 @@ import { AdmissionsController } from '../controllers/admissions.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { AcademicsController } from '../controllers/academics.controller';
 import { AdminController } from '../controllers/admin.controller';
+import { EmailController } from '../controllers/email.controller';
 import { validateAdmissionApplication, validateRegistration } from '../middleware/validation.middleware';
 import { authenticateToken, requireRole, verifyParentChildAccess } from '../middleware/auth.middleware';
 import { UserRole } from '@prisma/client';
@@ -56,6 +57,14 @@ apiRouter.get('/', (req, res) => {
 apiRouter.post('/admissions/apply', validateAdmissionApplication, AdmissionsController.apply);
 apiRouter.get('/admissions', authenticateToken, requireRole([UserRole.ADMIN, UserRole.PRINCIPAL]), AdmissionsController.getApplications);
 apiRouter.post('/admissions/:id/approve', authenticateToken, requireRole([UserRole.ADMIN, UserRole.PRINCIPAL]), AdmissionsController.approveApplication);
+apiRouter.post('/auth/register', validateRegistration, AdmissionsController.register);
+
+// --- SMTP EMAIL DISPATCHING ---
+apiRouter.post('/emails/send-admission-approval', EmailController.sendAdmissionApproval);
+apiRouter.post('/emails/send-registration-success', EmailController.sendRegistrationSuccess);
+apiRouter.post('/emails/send-otp', EmailController.sendPasswordResetOtp);
+apiRouter.post('/emails/send-custom', EmailController.sendCustom);
+
 // --- AUTHENTICATION & PASSWORD RECOVERY ---
 apiRouter.post('/auth/login', AuthController.login);
 apiRouter.get('/auth/me', authenticateToken, AuthController.me);

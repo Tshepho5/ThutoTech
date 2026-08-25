@@ -1,13 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/validation/input_validators.dart';
 import '../../data/mock_database.dart';
 import '../../models/models.dart';
+import '../../services/api_service.dart';
 import '../admissions/admission_application_screen.dart';
 import '../admissions/registration_screen.dart';
 import 'forgot_password_screen.dart';
-import '../learner/learner_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   final MockDatabase db;
@@ -25,61 +25,283 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
+  int? _lockoutSecondsRemaining;
+  Timer? _lockoutTimer;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _lockoutTimer?.cancel();
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _startLockoutCountdown(int seconds) {
+    setState(() => _lockoutSecondsRemaining = seconds);
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_lockoutSecondsRemaining! <= 1) {
+        timer.cancel();
+        setState(() {
+          _lockoutSecondsRemaining = null;
+          _errorMessage = null;
+        });
+      } else {
+        setState(() {
+          _lockoutSecondsRemaining = _lockoutSecondsRemaining! - 1;
+        });
+      }
+    });
+  }
+
+  Future<void> _handleLogin() async {
     setState(() {
       _errorMessage = null;
     });
 
-    final email = _emailController.text.trim();
-    final pass = _passwordController.text.trim();
+    final identifier = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-    if (email.isEmpty || pass.isEmpty) {
-      setState(() => _errorMessage = 'Please enter both your login identifier/email and password.');
+    if (identifier.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your login email / student number and password.');
       return;
     }
 
     setState(() => _isLoading = true);
 
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (!mounted) return;
-
-      // Match user by email or learner student number
-      final user = widget.db.users.firstWhere(
-        (u) => u.email.toLowerCase() == email.toLowerCase() || email.startsWith(u.id),
-        orElse: () {
-          // If learner entered student number like 20260001
-          final learner = widget.db.learners.firstWhere(
-            (l) => l.learnerNumber == email || '${l.learnerNumber}@thutotech.co.za' == email.toLowerCase(),
-            orElse: () => throw Exception('User not found. Check your credentials or complete registration.'),
+    try {
+      // 1. Attempt Backend API Authentication
+      User? authenticatedUser;
+      try {
+        final backendResponse = await ApiService.login(identifier, password);
+        if (backendResponse['success'] == true && backendResponse['user'] != null) {
+          final uData = backendResponse['user'];
+          final roleString = (uData['role'] as String).toLowerCase();
+          final userRole = UserRole.values.firstWhere(
+            (r) => r.name == roleString,
+            orElse: () => UserRole.parent,
           );
-          return widget.db.users.firstWhere((u) => u.id == learner.userId);
-        },
-      );
 
-      widget.db.currentUser = user;
-      setState(() => _isLoading = false);
-      widget.onLoginSuccess();
-    }).catchError((e) {
+          authenticatedUser = User(
+            id: uData['id'],
+            email: uData['email'],
+            name: uData['name'],
+            surname: uData['surname'],
+            role: userRole,
+            phone: uData['phone'] ?? '',
+            avatarUrl: '',
+            schoolId: uData['schoolId'] ?? 'sch_thutotech',
+            twoFactorEnabled: userRole == UserRole.admin || userRole == UserRole.principal,
+          );
+
+          widget.db.currentUser = authenticatedUser;
+        } else if (backendResponse['locked'] == true) {
+          final secs = backendResponse['remainingSeconds'] ?? 300;
+          _startLockoutCountdown(secs);
+          throw Exception(backendResponse['message'] ?? 'Account is temporarily locked.');
+        } else if (backendResponse['message'] != null && backendResponse['success'] == false) {
+          throw Exception(backendResponse['message']);
+        }
+      } catch (backendError) {
+        final errStr = backendError.toString();
+        if (errStr.contains('locked') || errStr.contains('Invalid') || errStr.contains('attempts remaining')) {
+          rethrow;
+        }
+        // Fallback to local hardened engine if offline
+        authenticatedUser = widget.db.authenticate(
+          identifier: identifier,
+          password: password,
+        );
+      }
+
+      if (authenticatedUser == null) {
+        throw Exception('Authentication failed.');
+      }
+
+      // 2. Check Two-Factor Authentication (2FA) for protected roles
+      if (authenticatedUser.twoFactorEnabled) {
+        setState(() => _isLoading = false);
+        await _promptTwoFactorOtpDialog(authenticatedUser);
+      } else {
+        setState(() => _isLoading = false);
+        widget.onLoginSuccess();
+      }
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
-    });
+    }
+  }
+
+  Future<void> _promptTwoFactorOtpDialog(User user) async {
+    final otpController = TextEditingController();
+    String? otpError;
+    int remainingSeconds = 120;
+    Timer? otpTimer;
+
+    // Send 2FA OTP to user email
+    try {
+      widget.db.sendTwoFactorOtp(user.email);
+    } catch (_) {}
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            otpTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (remainingSeconds <= 1) {
+                t.cancel();
+                setDialogState(() {
+                  remainingSeconds = 0;
+                  otpError = 'OTP has expired. Please request a new security code.';
+                });
+              } else {
+                setDialogState(() {
+                  remainingSeconds--;
+                });
+              }
+            });
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.security_rounded, color: AppTheme.primaryGreen, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Two-Factor 2FA', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A 6-digit security code was dispatched via SMTP to:',
+                    style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.email,
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  if (otpError != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.dangerRed.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(otpError!, style: GoogleFonts.outfit(color: AppTheme.dangerRed, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
+                    decoration: InputDecoration(
+                      hintText: '000000',
+                      hintStyle: GoogleFonts.outfit(color: Colors.grey.shade400, letterSpacing: 8),
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, size: 16, color: AppTheme.warningOrange),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Expires in ${remainingSeconds ~/ 60}:${(remainingSeconds % 60).toString().padLeft(2, '0')}',
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryNavy),
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: remainingSeconds == 0
+                            ? () {
+                                widget.db.sendTwoFactorOtp(user.email);
+                                setDialogState(() {
+                                  remainingSeconds = 120;
+                                  otpError = null;
+                                });
+                              }
+                            : null,
+                        child: const Text('Resend Code', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    otpTimer?.cancel();
+                    Navigator.pop(dialogCtx);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    try {
+                      final code = otpController.text.trim();
+                      if (code.length != 6) {
+                        setDialogState(() => otpError = 'Please enter a valid 6-digit OTP.');
+                        return;
+                      }
+
+                      final isValid = widget.db.verifyTwoFactorOtp(user.email, code);
+                      if (isValid) {
+                        otpTimer?.cancel();
+                        Navigator.pop(dialogCtx);
+                        widget.onLoginSuccess();
+                      }
+                    } catch (e) {
+                      setDialogState(() => otpError = e.toString().replaceAll('Exception: ', ''));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: const Text('Verify & Enter'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    otpTimer?.cancel();
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       body: Stack(
@@ -97,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // Glow effects
+          // Glow accents
           Positioned(
             top: -80,
             right: -80,
@@ -193,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Access your Learner, Parent, Teacher, or Principal portal',
+                            'Enter your credentials to access your designated role portal',
                             style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF94A3B8)),
                           ),
                           const SizedBox(height: 20),
@@ -222,6 +444,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 16),
                           ],
 
+                          if (_lockoutSecondsRemaining != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.warningOrange.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppTheme.warningOrange.withOpacity(0.5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.lock_clock_rounded, color: AppTheme.warningOrange, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Account Locked. Try again in ${_lockoutSecondsRemaining!}s',
+                                      style: GoogleFonts.outfit(color: AppTheme.warningOrange, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
                           // Email / Identifier Field
                           Text('Login Email or Student Number', style: GoogleFonts.outfit(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 6),
@@ -229,7 +475,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _emailController,
                             style: GoogleFonts.outfit(color: Colors.white),
                             decoration: InputDecoration(
-                              hintText: 'e.g. parent@example.com or 20260001@thutotech.co.za',
+                              hintText: 'e.g. parent@thutotech.co.za or 20260001',
                               hintStyle: GoogleFonts.outfit(color: Colors.white30, fontSize: 13),
                               prefixIcon: const Icon(Icons.person_outline_rounded, color: AppTheme.primaryGreen),
                               filled: true,
@@ -248,7 +494,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: _obscurePassword,
                             style: GoogleFonts.outfit(color: Colors.white),
                             decoration: InputDecoration(
-                              hintText: 'Enter your password (e.g. Thuto@05518)',
+                              hintText: 'Enter your account password',
                               hintStyle: GoogleFonts.outfit(color: Colors.white30, fontSize: 13),
                               prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppTheme.primaryGreen),
                               suffixIcon: IconButton(
@@ -300,7 +546,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _handleLogin,
+                              onPressed: (_isLoading || _lockoutSecondsRemaining != null) ? null : _handleLogin,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryGreen,
                                 foregroundColor: Colors.white,

@@ -1,8 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5000/api/v1';
+  static String get baseUrl {
+    if (kIsWeb && !kDebugMode) {
+      return '/api/v1';
+    }
+    return 'http://localhost:5000/api/v1';
+  }
+
   static String? authToken;
 
   static Map<String, String> get _headers => {

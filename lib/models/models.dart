@@ -48,6 +48,8 @@ class User {
   final String avatarUrl;
   final String schoolId;
   final String status; // ACTIVE, INVITED, DEACTIVATED
+  final String? password;
+  final bool twoFactorEnabled;
 
   User({
     required this.id,
@@ -59,6 +61,8 @@ class User {
     required this.avatarUrl,
     required this.schoolId,
     this.status = 'ACTIVE',
+    this.password,
+    this.twoFactorEnabled = false,
   });
 
   String get fullName => '$name $surname';
@@ -431,6 +435,7 @@ class AdmissionApplication {
   String? get stream => learners.isNotEmpty ? learners.first.stream : null;
   String get previousSchool => learners.isNotEmpty ? learners.first.previousSchool : 'Not Specified';
   bool get documentVerified => learners.isNotEmpty && learners.every((l) => l.documentVerified);
+  final String? primaryParentPassword;
   // Status
   ApplicationStatus status;
   final String registrationToken;
@@ -446,6 +451,7 @@ class AdmissionApplication {
     required this.primaryParentPhone,
     required this.primaryParentEmail,
     required this.primaryParentIdNumber,
+    this.primaryParentPassword,
     this.primaryParentGender,
     this.primaryParentDob,
     this.primaryParentDocumentName = 'Primary_Parent_ID.pdf',

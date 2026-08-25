@@ -4,14 +4,12 @@ import 'core/theme/app_theme.dart';
 import 'data/mock_database.dart';
 import 'features/admin/admin_dashboard.dart';
 import 'features/admissions/admission_application_screen.dart';
-import 'features/admissions/registration_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/learner/learner_dashboard.dart';
 import 'features/parent/parent_dashboard.dart';
 import 'features/principal/principal_dashboard.dart';
 import 'features/teacher/teacher_dashboard.dart';
 import 'models/models.dart';
-import 'widgets/custom_widgets.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +87,9 @@ class _MainAppWrapperState extends State<MainAppWrapper> {
       );
     }
 
+    final user = _db.currentUser!;
+    final role = user.role;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -104,36 +105,59 @@ class _MainAppWrapperState extends State<MainAppWrapper> {
                 errorBuilder: (_, __, ___) => const Icon(Icons.school_rounded, color: AppTheme.primaryGreen, size: 28),
               ),
             ),
-            const SizedBox(width: 8),
-            Text(
-              'ThutoTech',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 0.5),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'ThutoTech',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                ),
+                Text(
+                  role.displayName,
+                  style: GoogleFonts.outfit(fontSize: 10, color: AppTheme.accentGreen, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
-          // Admission Application Button
-          IconButton(
-            icon: const Icon(Icons.app_registration_rounded, color: Colors.white),
-            tooltip: 'Apply for Admission',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AdmissionApplicationScreen(db: _db)),
-              );
-            },
+          // Active User Badge Chip
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(role.icon, size: 14, color: AppTheme.accentGreen),
+                const SizedBox(width: 6),
+                Text(
+                  user.fullName,
+                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ],
+            ),
           ),
-          // Complete Registration Button
-          IconButton(
-            icon: const Icon(Icons.how_to_reg_rounded, color: AppTheme.primaryGreen),
-            tooltip: 'Complete Registration',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => RegistrationScreen(db: _db)),
-              );
-            },
-          ),
+
+          // Admission Application (Only visible to relevant roles or guest actions)
+          if (role == UserRole.parent || role == UserRole.admin || role == UserRole.principal)
+            IconButton(
+              icon: const Icon(Icons.app_registration_rounded, color: Colors.white70),
+              tooltip: 'Admissions Module',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdmissionApplicationScreen(db: _db)),
+                );
+              },
+            ),
+
           // Notification badge button
           IconButton(
             icon: Stack(
@@ -157,28 +181,40 @@ class _MainAppWrapperState extends State<MainAppWrapper> {
             tooltip: 'System Notifications',
             onPressed: _showNotificationsModal,
           ),
+
           // Sign out
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white70),
             tooltip: 'Sign Out',
             onPressed: () {
-              setState(() {
-                _db.currentUser = null;
-                _isAuthenticated = false;
-              });
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Sign Out'),
+                  content: const Text('Are you sure you want to end your active session?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _db.currentUser = null;
+                          _isAuthenticated = false;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerRed),
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
           const SizedBox(width: 4),
         ],
       ),
-      body: Column(
-        children: [
-          RoleSwitcherBar(
-            db: _db,
-            onRoleSwitched: () => setState(() {}),
-          ),
-          Expanded(child: _getCurrentPortal()),
-        ],
+      body: SafeArea(
+        child: _getCurrentPortal(),
       ),
     );
   }

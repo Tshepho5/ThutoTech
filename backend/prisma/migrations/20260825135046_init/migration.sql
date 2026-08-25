@@ -306,6 +306,7 @@ CREATE TABLE "automation_rules" (
 
     CONSTRAINT "automation_rules_pkey" PRIMARY KEY ("id")
 );
+select * from automation_rules;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "schools_code_key" ON "schools"("code");

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/curriculum/caps_curriculum.dart';
@@ -7,6 +8,7 @@ import '../../core/utils/sa_id_parser.dart';
 import '../../core/validation/input_validators.dart';
 import '../../data/mock_database.dart';
 import '../../models/models.dart';
+import '../../widgets/password_strength_meter.dart';
 
 class _LearnerFormEntry {
   final TextEditingController nameCtrl = TextEditingController();
@@ -19,6 +21,8 @@ class _LearnerFormEntry {
   String selectedFal = 'Afrikaans';
   String selectedStream = CapsCurriculum.fetStreams.first;
   String documentName = 'Learner_ID_Copy.pdf';
+  PlatformFile? pickedFile;
+  String? fileSizeString;
   AiVerificationResult? aiResult;
 
   void dispose() {
@@ -47,8 +51,12 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   final _primaryIdCtrl = TextEditingController();
   final _primaryPhoneCtrl = TextEditingController();
   final _primaryEmailCtrl = TextEditingController();
+  final _primaryPasswordCtrl = TextEditingController();
+  final _primaryConfirmPasswordCtrl = TextEditingController();
   SAIdInfo? _primaryIdInfo;
   String _parentDocName = 'Primary_Parent_SA_ID.pdf';
+  PlatformFile? _parentPickedFile;
+  String? _parentFileSizeString;
 
   // SECONDARY PARENT (OPTIONAL)
   bool _hasSecondaryParent = false;
@@ -59,6 +67,8 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   final _secEmailCtrl = TextEditingController();
   SAIdInfo? _secIdInfo;
   String _secParentDocName = 'Secondary_Parent_ID.pdf';
+  PlatformFile? _secParentPickedFile;
+  String? _secParentFileSizeString;
 
   // STEP 2: MULTI-LEARNERS LIST
   final List<_LearnerFormEntry> _learners = [];
@@ -68,6 +78,75 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   bool _isOcrScanning = false;
   AiVerificationResult? _parentAiResult;
   AiVerificationResult? _secParentAiResult;
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _pickParentDocument() async {
+    try {
+      final result = await FilePickerPlatform.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'docx', 'doc'],
+      );
+      if (result != null && result.isNotEmpty) {
+        final file = result.first;
+        setState(() {
+          _parentPickedFile = file;
+          _parentDocName = file.name;
+          _parentFileSizeString = 'Document Attached';
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit())),
+      );
+    }
+  }
+
+  Future<void> _pickSecondaryParentDocument() async {
+    try {
+      final result = await FilePickerPlatform.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'docx', 'doc'],
+      );
+      if (result != null && result.isNotEmpty) {
+        final file = result.first;
+        setState(() {
+          _secParentPickedFile = file;
+          _secParentDocName = file.name;
+          _secParentFileSizeString = 'Document Attached';
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit())),
+      );
+    }
+  }
+
+  Future<void> _pickLearnerDocument(_LearnerFormEntry entry) async {
+    try {
+      final result = await FilePickerPlatform.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'docx', 'doc'],
+      );
+      if (result != null && result.isNotEmpty) {
+        final file = result.first;
+        setState(() {
+          entry.pickedFile = file;
+          entry.documentName = file.name;
+          entry.fileSizeString = 'Document Attached';
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit())),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -89,6 +168,10 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
           _secIdInfo = SAIdParser.parse(_secIdCtrl.text);
         });
       }
+    });
+
+    _primaryPasswordCtrl.addListener(() {
+      if (mounted) setState(() {});
     });
   }
 
@@ -123,6 +206,8 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
     _primaryIdCtrl.dispose();
     _primaryPhoneCtrl.dispose();
     _primaryEmailCtrl.dispose();
+    _primaryPasswordCtrl.dispose();
+    _primaryConfirmPasswordCtrl.dispose();
 
     _secNameCtrl.dispose();
     _secSurnameCtrl.dispose();
@@ -246,6 +331,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       primaryParentSurname: _primarySurnameCtrl.text.trim(),
       primaryParentPhone: _primaryPhoneCtrl.text.trim(),
       primaryParentEmail: _primaryEmailCtrl.text.trim(),
+      primaryParentPassword: _primaryPasswordCtrl.text.trim().isNotEmpty ? _primaryPasswordCtrl.text.trim() : null,
       primaryParentIdNumber: _primaryIdCtrl.text.trim(),
       primaryParentGender: _primaryIdInfo?.gender,
       primaryParentDob: _primaryIdInfo?.dateOfBirth,
@@ -372,7 +458,19 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                 _primaryPhoneCtrl.text.isEmpty ||
                 _primaryEmailCtrl.text.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Please complete all primary parent fields.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+                SnackBar(content: Text('Please complete all primary parent contact and identification fields.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+              );
+              return;
+            }
+            if (_primaryPasswordCtrl.text.trim().isEmpty || _primaryPasswordCtrl.text.trim().length < 6) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Please create a parent portal password (at least 6 characters).', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+              );
+              return;
+            }
+            if (_primaryPasswordCtrl.text.trim() != _primaryConfirmPasswordCtrl.text.trim()) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Parent password and confirm password do not match.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
               );
               return;
             }
@@ -452,14 +550,13 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                   ),
                 ],
 
-                // Parent ID Upload Card
+                // Parent ID Upload Card with Native File Picker
                 _buildUploadPicker(
                   label: 'Upload Primary Parent SA ID Copy *',
                   fileName: _parentDocName,
+                  fileSize: _parentFileSizeString,
                   icon: Icons.upload_file_rounded,
-                  onPick: () {
-                    setState(() => _parentDocName = 'Primary_Parent_ID_SmartCard.pdf');
-                  },
+                  onPick: _pickParentDocument,
                 ),
                 const SizedBox(height: 12),
 
@@ -473,10 +570,58 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                 ),
                 ValidatedTextField(
                   controller: _primaryEmailCtrl,
-                  label: 'Email Address for Admission Notices',
+                  label: 'Email Address for Admission Notices & Login',
                   hint: 'parent@example.com',
                   dataType: InputDataType.email,
                   prefixIcon: Icons.email_outlined,
+                ),
+
+                const SizedBox(height: 14),
+
+                // PARENT PORTAL PASSWORD CREATION
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.primaryNavy.withOpacity(0.12)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.lock_person_rounded, color: AppTheme.primaryGreen, size: 22),
+                          const SizedBox(width: 8),
+                          Text('Create Parent Portal Password', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryNavy)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Set the password you will use to sign in to your Parent Portal upon admission approval.',
+                        style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
+                      ),
+                      const SizedBox(height: 12),
+                      ValidatedTextField(
+                        controller: _primaryPasswordCtrl,
+                        label: 'Create Parent Password *',
+                        hint: 'Minimum 8 characters (e.g. Pass@2026)',
+                        dataType: InputDataType.password,
+                        isPassword: true,
+                        prefixIcon: Icons.lock_outline_rounded,
+                      ),
+                      PasswordStrengthMeter(password: _primaryPasswordCtrl.text),
+                      const SizedBox(height: 6),
+                      ValidatedTextField(
+                        controller: _primaryConfirmPasswordCtrl,
+                        label: 'Confirm Parent Password *',
+                        hint: 'Re-type the chosen password',
+                        dataType: InputDataType.password,
+                        isPassword: true,
+                        prefixIcon: Icons.lock_reset_rounded,
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 16),
@@ -539,10 +684,9 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                         _buildUploadPicker(
                           label: 'Upload Secondary Parent ID Copy',
                           fileName: _secParentDocName,
+                          fileSize: _secParentFileSizeString,
                           icon: Icons.upload_file_rounded,
-                          onPick: () {
-                            setState(() => _secParentDocName = 'Secondary_Parent_ID_SmartCard.pdf');
-                          },
+                          onPick: _pickSecondaryParentDocument,
                         ),
                         const SizedBox(height: 12),
                         ValidatedTextField(
@@ -672,10 +816,9 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                         _buildUploadPicker(
                           label: 'Upload Learner Birth Certificate / Smart ID *',
                           fileName: l.documentName,
+                          fileSize: l.fileSizeString,
                           icon: Icons.document_scanner_rounded,
-                          onPick: () {
-                            setState(() => l.documentName = 'Learner_${idx + 1}_SA_ID_BirthCert.pdf');
-                          },
+                          onPick: () => _pickLearnerDocument(l),
                         ),
                         const SizedBox(height: 12),
 
@@ -839,7 +982,13 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
     );
   }
 
-  Widget _buildUploadPicker({required String label, required String fileName, required IconData icon, required VoidCallback onPick}) {
+  Widget _buildUploadPicker({
+    required String label,
+    required String fileName,
+    String? fileSize,
+    required IconData icon,
+    required VoidCallback onPick,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -856,17 +1005,46 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12)),
-                Text(fileName, style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        fileName,
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: fileSize != null ? AppTheme.primaryNavy : AppTheme.textMuted,
+                          fontWeight: fileSize != null ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (fileSize != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryGreen.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(fileSize, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
-          OutlinedButton(
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
             onPressed: onPick,
-            style: OutlinedButton.styleFrom(
+            icon: const Icon(Icons.folder_open_rounded, size: 14),
+            label: const Text('Browse', style: TextStyle(fontSize: 11)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryNavy,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              minimumSize: const Size(60, 32),
+              minimumSize: const Size(80, 32),
             ),
-            child: const Text('Browse', style: TextStyle(fontSize: 11)),
           ),
         ],
       ),

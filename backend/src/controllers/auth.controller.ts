@@ -32,34 +32,124 @@ function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
+// In-memory failed attempts tracker for brute-force protection
+interface LoginAttemptTracker {
+  count: number;
+  lockedUntil?: Date;
+  lastAttempt: Date;
+}
+
+const loginAttemptsMap = new Map<string, LoginAttemptTracker>();
+
 export class AuthController {
   static async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
-        return res.status(400).json({ success: false, message: 'Email and password are required.' });
+        return res.status(400).json({ success: false, message: 'Email/Student number and password are required.' });
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: email.trim().toLowerCase() },
+      const cleanIdentifier = email.trim().toLowerCase();
+
+      // 1. Check Brute-Force Lockout
+      const attemptInfo = loginAttemptsMap.get(cleanIdentifier);
+      if (attemptInfo && attemptInfo.lockedUntil && new Date() < attemptInfo.lockedUntil) {
+        const remainingSeconds = Math.ceil((attemptInfo.lockedUntil.getTime() - Date.now()) / 1000);
+        return res.status(423).json({
+          success: false,
+          message: `Account is temporarily locked due to excessive failed attempts. Please try again in ${remainingSeconds} seconds.`,
+          locked: true,
+          remainingSeconds,
+        });
+      }
+
+      // 2. Find User by email or learner student number
+      let user = await prisma.user.findUnique({
+        where: { email: cleanIdentifier },
         include: { learner: true, parent: true, teacher: true },
       });
 
       if (!user) {
-        return res.status(401).json({ success: false, message: 'Invalid email or credentials.' });
+        // Search by learner student number
+        const learnerRecord = await prisma.learner.findUnique({
+          where: { learnerNumber: cleanIdentifier },
+          include: { user: { include: { learner: true, parent: true, teacher: true } } },
+        });
+        if (learnerRecord && learnerRecord.user) {
+          user = learnerRecord.user;
+        }
       }
 
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
+      }
+
+      // 3. Verify Password Hash
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid email or credentials.' });
+        const currentCount = (attemptInfo?.count || 0) + 1;
+        if (currentCount >= 5) {
+          const lockedUntil = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+          loginAttemptsMap.set(cleanIdentifier, {
+            count: currentCount,
+            lockedUntil,
+            lastAttempt: new Date(),
+          });
+
+          // Send Security Alert Email
+          EmailService.sendCustomEmail({
+            recipientEmail: user.email,
+            recipientName: `${user.name} ${user.surname}`,
+            subject: 'Security Alert: Account Temporarily Locked - ThutoTech',
+            title: 'Multiple Failed Login Attempts Detected',
+            body: `We detected 5 consecutive failed login attempts on your ThutoTech account. As a security precaution, your account has been temporarily locked for 5 minutes.\n\nIf this was not you, please reset your password immediately upon account unlock.`,
+            fromName: 'ThutoTech Security Office',
+          });
+
+          return res.status(423).json({
+            success: false,
+            message: 'Account locked for 5 minutes due to 5 consecutive failed login attempts. A security alert was sent to your email.',
+            locked: true,
+            remainingSeconds: 300,
+          });
+        } else {
+          loginAttemptsMap.set(cleanIdentifier, {
+            count: currentCount,
+            lastAttempt: new Date(),
+          });
+          const remaining = 5 - currentCount;
+          return res.status(401).json({
+            success: false,
+            message: `Invalid password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before security lockout.`,
+            attemptsRemaining: remaining,
+          });
+        }
       }
 
+      // 4. Reset failed attempts on success
+      loginAttemptsMap.delete(cleanIdentifier);
+
+      // 5. Generate Signed JWT Token
       const secret = process.env.JWT_SECRET || 'thutotech_secret';
       const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role, schoolId: user.schoolId },
         secret,
         { expiresIn: '7d' }
       );
+
+      // Record Audit Log if Prisma auditLog model exists
+      try {
+        await prisma.auditLog.create({
+          data: {
+            userId: user.id,
+            userName: `${user.name} ${user.surname}`,
+            role: user.role,
+            action: 'LOGIN_SUCCESS',
+            entity: 'Session',
+            details: `User logged in with role: ${user.role}`,
+          },
+        });
+      } catch (_) {}
 
       return res.json({
         success: true,

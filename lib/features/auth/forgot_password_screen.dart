@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/validation/input_validators.dart';
 import '../../data/mock_database.dart';
+import '../../widgets/password_strength_meter.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   final MockDatabase db;
@@ -481,7 +482,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     obscureText: _obscureNewPass,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Enter new secure password',
+                      hintText: 'Enter new secure password (e.g. Pass@2026)',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                       prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppTheme.accentGreen),
                       suffixIcon: IconButton(
@@ -494,7 +495,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.15))),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  PasswordStrengthMeter(password: _newPasswordCtrl.text),
+                  const SizedBox(height: 10),
 
                   Text('Confirm New Password', style: GoogleFonts.outfit(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),

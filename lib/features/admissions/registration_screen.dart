@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/validation/input_validators.dart';
 import '../../data/mock_database.dart';
 import '../../models/models.dart';
+import '../../widgets/password_strength_meter.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final MockDatabase db;
@@ -32,6 +33,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String? _generalError;
 
   @override
+  void initState() {
+    super.initState();
+    _parentPasswordCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _tokenCtrl.dispose();
     _parentNameCtrl.dispose();
@@ -50,6 +59,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _parentNameCtrl.text = app.primaryParentName;
       _parentSurnameCtrl.text = app.primaryParentSurname;
       _parentEmailCtrl.text = app.primaryParentEmail;
+      if (app.primaryParentPassword != null && app.primaryParentPassword!.isNotEmpty) {
+        _parentPasswordCtrl.text = app.primaryParentPassword!;
+      }
       _learnerNameCtrl.text = app.learnerName;
       _learnerSurnameCtrl.text = app.learnerSurname;
       _learnerIdCtrl.text = app.learnerIdNumber;
@@ -312,11 +324,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ValidatedTextField(
                 controller: _parentPasswordCtrl,
                 label: 'Create Parent Password',
-                hint: 'Min 6 characters',
+                hint: 'Min 8 characters (e.g. Pass@2026)',
                 dataType: InputDataType.password,
                 isPassword: true,
                 prefixIcon: Icons.lock_outline,
               ),
+              PasswordStrengthMeter(password: _parentPasswordCtrl.text),
 
               const Divider(height: 28),
 

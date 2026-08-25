@@ -275,4 +275,58 @@ export class EmailService {
       return false;
     }
   }
+
+  /**
+   * 4. Send Generic / Custom System Notification Email
+   */
+  static async sendCustomEmail(params: {
+    recipientEmail: string;
+    recipientName?: string;
+    subject: string;
+    title?: string;
+    body: string;
+    fromName?: string;
+  }): Promise<boolean> {
+    const { recipientEmail, recipientName, subject, title, body, fromName } = params;
+
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 16px; background-color: #ffffff;">
+        <div style="background-color: #0B192C; padding: 24px; border-radius: 12px; text-align: center; color: white;">
+          <h1 style="margin: 0; font-size: 24px; color: #16C47F; font-weight: 800;">ThutoTech Academy</h1>
+          <p style="margin: 6px 0 0 0; font-size: 12px; letter-spacing: 2px; color: #94A3B8;">LEARN • CONNECT • EMPOWER</p>
+        </div>
+
+        <div style="padding: 24px 4px;">
+          <h2 style="color: #0B192C; margin-top: 0; font-size: 20px;">${title || subject}</h2>
+          ${recipientName ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Dear <strong>${recipientName}</strong>,</p>` : ''}
+          <div style="color: #334155; font-size: 14px; line-height: 1.7; background-color: #F8FAFC; padding: 18px; border-radius: 10px; border-left: 4px solid #16C47F; margin: 16px 0;">
+            ${body.replace(/\n/g, '<br/>')}
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #E2E8F0; padding-top: 16px; font-size: 12px; color: #64748B; text-align: center;">
+          <p style="margin: 0;">ThutoTech Digital School Ecosystem • South Africa</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      const transporter = await this.getTransporter();
+      const info = await transporter.sendMail({
+        from: `"${fromName || 'ThutoTech Communications'}" <${process.env.SMTP_FROM || 'admin@thutotech.co.za'}>`,
+        to: recipientEmail,
+        subject,
+        html: htmlContent,
+      });
+
+      console.log(`✉️ [EmailService] Custom email dispatched to ${recipientEmail} (${subject})`);
+      if (nodemailer.getTestMessageUrl(info)) {
+        console.log(`🔗 [EmailService] Preview Email Online: ${nodemailer.getTestMessageUrl(info)}`);
+      }
+      return true;
+    } catch (error) {
+      console.error('⚠️ [EmailService] Failed to send custom email:', error);
+      return false;
+    }
+  }
 }

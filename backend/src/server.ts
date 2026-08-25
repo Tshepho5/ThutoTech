@@ -18,13 +18,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+import path from 'path';
+import fs from 'fs';
+
 // API Routes
 app.use('/api/v1', apiRouter);
-
-// Root Info Endpoint
-app.get('/', (req, res) => {
-  res.redirect('/api/v1');
-});
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
@@ -35,6 +33,36 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Serve Flutter Web if build directory exists
+const candidates = [
+  path.join(__dirname, '../../build/web'),
+  path.join(__dirname, '../build/web'),
+  path.join(process.cwd(), 'build/web'),
+];
+
+let webDir: string | null = null;
+for (const cand of candidates) {
+  if (fs.existsSync(cand)) {
+    webDir = cand;
+    break;
+  }
+}
+
+if (webDir) {
+  app.use(express.static(webDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      return next();
+    }
+    res.sendFile(path.join(webDir!, 'index.html'));
+  });
+} else {
+  // Fallback Root Info Endpoint
+  app.get('/', (req, res) => {
+    res.redirect('/api/v1');
+  });
+}
 
 // Start Server
 async function bootstrap() {
