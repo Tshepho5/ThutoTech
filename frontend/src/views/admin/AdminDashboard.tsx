@@ -243,20 +243,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onL
     return (u.name + ' ' + u.surname).toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
   });
 
-  // Marks & Assessment Mock Sample Breakdown if database records are populating
-  const marksLedger = [
-    { id: 'm1', learner: 'Lerato Makola', studentNo: '20260001', subject: 'Mathematics', type: 'QUIZ', title: 'Algebraic Equations Speed Quiz', mark: 19, total: 20, level: 'Level 7 (95%)' },
-    { id: 'm2', learner: 'Lerato Makola', studentNo: '20260001', subject: 'Mathematics', type: 'HOMEWORK', title: 'Analytical Geometry Problem Set 1', mark: 46, total: 50, level: 'Level 7 (92%)' },
-    { id: 'm3', learner: 'Lerato Makola', studentNo: '20260001', subject: 'Physical Sciences', type: 'TEST', title: 'Mechanics & Vector Forces SBA Test', mark: 88, total: 100, level: 'Level 7 (88%)' },
-    { id: 'm4', learner: 'Lerato Makola', studentNo: '20260001', subject: 'Life Sciences', type: 'EXAM', title: 'Term 1 Controlled Examination', mark: 85, total: 100, level: 'Level 7 (85%)' },
-    { id: 'm5', learner: 'Kagiso Molepo', studentNo: '20260002', subject: 'Mathematics', type: 'QUIZ', title: 'Algebraic Equations Speed Quiz', mark: 16, total: 20, level: 'Level 6 (80%)' },
-    { id: 'm6', learner: 'Kagiso Molepo', studentNo: '20260002', subject: 'Mathematics', type: 'HOMEWORK', title: 'Analytical Geometry Problem Set 1', mark: 41, total: 50, level: 'Level 6 (82%)' },
-    { id: 'm7', learner: 'Thabo Mokoena', studentNo: '20260003', subject: 'Physical Sciences', type: 'TEST', title: 'Mechanics & Vector Forces SBA Test', mark: 70, total: 100, level: 'Level 5 (70%)' },
-    { id: 'm8', learner: 'Nthabiseng Baloyi', studentNo: '20260004', subject: 'Life Sciences', type: 'HOMEWORK', title: 'Cell Structure & Genetics Assignment', mark: 48, total: 50, level: 'Level 7 (96%)' },
-    { id: 'm9', learner: 'Nthabiseng Baloyi', studentNo: '20260004', subject: 'Physical Sciences', type: 'EXAM', title: 'Term 1 Controlled Examination', mark: 94, total: 100, level: 'Level 7 (94%)' },
-  ];
+  // Marks & Assessment Records from PostgreSQL Database
+  const marksLedger = (dbAssessments || []).flatMap((asmt: any) => {
+    if (!asmt.submissions || asmt.submissions.length === 0) return [];
+    return asmt.submissions.map((sub: any) => {
+      const percentage = asmt.maxMarks > 0 ? Math.round(((sub.mark || 0) / asmt.maxMarks) * 100) : 0;
+      let level = 'Level 1 (0-29%)';
+      if (percentage >= 80) level = `Level 7 (${percentage}%)`;
+      else if (percentage >= 70) level = `Level 6 (${percentage}%)`;
+      else if (percentage >= 60) level = `Level 5 (${percentage}%)`;
+      else if (percentage >= 50) level = `Level 4 (${percentage}%)`;
+      else if (percentage >= 40) level = `Level 3 (${percentage}%)`;
+      else if (percentage >= 30) level = `Level 2 (${percentage}%)`;
 
-  const filteredMarks = marksLedger.filter(m => {
+      return {
+        id: sub.id,
+        learner: sub.learner?.fullName ? `${sub.learner.fullName} ${sub.learner.surname || ''}` : 'Enrolled Learner',
+        studentNo: sub.learner?.learnerNumber || sub.learner?.idNumber || '2026-REG',
+        subject: asmt.subject?.name || 'CAPS Subject',
+        type: asmt.type || 'TEST',
+        title: asmt.title || 'Graded Assessment',
+        mark: sub.mark ?? 0,
+        total: asmt.maxMarks || 100,
+        level,
+      };
+    });
+  });
+
+  const filteredMarks = marksLedger.filter((m: any) => {
     const matchesType = assessmentFilter === 'ALL' || m.type === assessmentFilter;
     const matchesSearch = searchQuery === '' || 
       m.learner.toLowerCase().includes(searchQuery.toLowerCase()) || 
