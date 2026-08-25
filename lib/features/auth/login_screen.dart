@@ -6,6 +6,8 @@ import '../../data/mock_database.dart';
 import '../../models/models.dart';
 import '../admissions/admission_application_screen.dart';
 import '../admissions/registration_screen.dart';
+import 'forgot_password_screen.dart';
+import '../learner/learner_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   final MockDatabase db;
@@ -264,7 +266,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 8),
+
+                          // Forgot Password Action
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ForgotPasswordScreen(
+                                      db: widget.db,
+                                      initialEmail: _emailController.text.trim(),
+                                    ),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                minimumSize: const Size(50, 30),
+                              ),
+                              child: Text(
+                                'Forgot Password?',
+                                style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 14),
 
                           // Login Button
                           SizedBox(

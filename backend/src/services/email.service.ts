@@ -197,7 +197,81 @@ export class EmailService {
       }
       return true;
     } catch (error) {
-      console.error('⚠️ [EmailService] Failed to send registration email:', error);
+      console.error('⚠️ [EmailService] Failed to send registration confirmation email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 3. Send 6-digit Password Reset OTP with 2-minute Expiry Notice
+   */
+  static async sendPasswordResetOtpEmail(params: {
+    recipientEmail: string;
+    recipientName: string;
+    otp: string;
+    resetLink: string;
+  }): Promise<boolean> {
+    const { recipientEmail, recipientName, otp, resetLink } = params;
+
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 16px; background-color: #ffffff;">
+        <div style="background-color: #0B192C; padding: 24px; border-radius: 12px; text-align: center; color: white;">
+          <h1 style="margin: 0; font-size: 24px; color: #16C47F; font-weight: 800;">ThutoTech Academy</h1>
+          <p style="margin: 6px 0 0 0; font-size: 12px; letter-spacing: 2px; color: #94A3B8;">LEARN • CONNECT • EMPOWER</p>
+        </div>
+
+        <div style="padding: 24px 4px;">
+          <h2 style="color: #0B192C; margin-top: 0; font-size: 20px;">Password Reset Verification Code</h2>
+          <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+            Hello <strong>${recipientName}</strong>,
+          </p>
+          <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+            We received a request to reset the password for your ThutoTech account (<strong>${recipientEmail}</strong>). Please use the 6-digit verification code below:
+          </p>
+
+          <div style="background-color: #0B192C; border: 2px solid #16C47F; border-radius: 14px; padding: 24px; text-align: center; margin: 24px 0;">
+            <p style="margin: 0 0 8px 0; font-size: 12px; color: #16C47F; font-weight: 700; letter-spacing: 1.5px;">YOUR 6-DIGIT OTP CODE:</p>
+            <div style="font-size: 36px; font-weight: 900; color: #FFFFFF; letter-spacing: 10px; background: rgba(22, 196, 127, 0.15); padding: 12px 24px; border-radius: 10px; display: inline-block;">
+              ${otp}
+            </div>
+            <p style="margin: 14px 0 0 0; font-size: 13px; color: #F87171; font-weight: bold;">
+              ⏳ This code will expire in 2 MINUTES (120 seconds).
+            </p>
+          </div>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${resetLink}" style="background-color: #16C47F; color: #0B192C; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; display: inline-block;">
+              Verify OTP & Reset Password Directly
+            </a>
+          </div>
+
+          <p style="color: #64748B; font-size: 13px; line-height: 1.5;">
+            If you did not request this password reset or remember your old password, you can safely ignore this email.
+          </p>
+        </div>
+
+        <div style="border-top: 1px solid #E2E8F0; padding-top: 16px; font-size: 12px; color: #64748B; text-align: center;">
+          <p style="margin: 0;">ThutoTech Security & Authentication Services • South Africa</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      const transporter = await this.getTransporter();
+      const info = await transporter.sendMail({
+        from: `"ThutoTech Security" <${process.env.SMTP_FROM || 'security@thutotech.co.za'}>`,
+        to: recipientEmail,
+        subject: `Your 6-Digit Password Reset OTP: ${otp} (Expires in 2 mins) - ThutoTech`,
+        html: htmlContent,
+      });
+
+      console.log(`✉️ [EmailService] Password reset OTP dispatched to ${recipientEmail} (OTP: ${otp})`);
+      if (nodemailer.getTestMessageUrl(info)) {
+        console.log(`🔗 [EmailService] Preview OTP Email Online: ${nodemailer.getTestMessageUrl(info)}`);
+      }
+      return true;
+    } catch (error) {
+      console.error('⚠️ [EmailService] Failed to send password reset OTP email:', error);
       return false;
     }
   }

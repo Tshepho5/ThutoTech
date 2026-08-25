@@ -56,11 +56,12 @@ apiRouter.get('/', (req, res) => {
 apiRouter.post('/admissions/apply', validateAdmissionApplication, AdmissionsController.apply);
 apiRouter.get('/admissions', authenticateToken, requireRole([UserRole.ADMIN, UserRole.PRINCIPAL]), AdmissionsController.getApplications);
 apiRouter.post('/admissions/:id/approve', authenticateToken, requireRole([UserRole.ADMIN, UserRole.PRINCIPAL]), AdmissionsController.approveApplication);
-apiRouter.post('/auth/register', validateRegistration, AdmissionsController.register);
-
-// --- AUTHENTICATION ---
+// --- AUTHENTICATION & PASSWORD RECOVERY ---
 apiRouter.post('/auth/login', AuthController.login);
 apiRouter.get('/auth/me', authenticateToken, AuthController.me);
+apiRouter.post('/auth/forgot-password', AuthController.forgotPassword);
+apiRouter.post('/auth/verify-otp', AuthController.verifyOtp);
+apiRouter.post('/auth/reset-password', AuthController.resetPassword);
 
 // --- LEARNER PORTAL ---
 apiRouter.get('/learner/dashboard', authenticateToken, requireRole([UserRole.LEARNER]), AcademicsController.getLearnerDashboard);

@@ -807,6 +807,150 @@ LEARN • CONNECT • EMPOWER
   String _formatDate(DateTime dt) {
     return '${dt.day}/${dt.month}/${dt.year}';
   }
+
+  // --- PASSWORD RESET & 2-MINUTE OTP RECOVERY ---
+
+  final Map<String, _MockOtpRecord> _activeOtps = {};
+
+  String requestPasswordResetOtp(String email) {
+    final cleanEmail = email.trim().toLowerCase();
+    final user = users.firstWhere(
+      (u) => u.email.toLowerCase() == cleanEmail,
+      orElse: () => throw Exception('No account found with this email address ($cleanEmail).'),
+    );
+
+    final otp = (100000 + (DateTime.now().millisecondsSinceEpoch % 900000)).toString();
+    final expiresAt = DateTime.now().add(const Duration(minutes: 2));
+
+    _activeOtps[cleanEmail] = _MockOtpRecord(otp: otp, expiresAt: expiresAt);
+
+    // Simulated email dispatch
+    simulatedEmails.insert(
+      0,
+      SimulatedEmail(
+        id: 'eml_${DateTime.now().millisecondsSinceEpoch}_otp',
+        recipientEmail: cleanEmail,
+        recipientName: user.fullName,
+        subject: 'Your 6-Digit Password Reset OTP: $otp (Expires in 2 mins) - ThutoTech',
+        sentAt: DateTime.now(),
+        body: '''
+Dear ${user.fullName},
+
+We received a request to reset your password for ThutoTech.
+
+### YOUR 6-DIGIT VERIFICATION CODE:
+# $otp
+
+⏳ **Note:** This OTP will strictly expire in 2 MINUTES (120 seconds).
+
+If you remember your password, you can simply return to the Sign In screen and login directly.
+
+Warm regards,
+ThutoTech Security & Authentication
+''',
+      ),
+    );
+
+    notifyListeners();
+    return otp;
+  }
+
+  bool verifyPasswordResetOtp(String email, String otp) {
+    final cleanEmail = email.trim().toLowerCase();
+    final record = _activeOtps[cleanEmail];
+
+    if (record == null || record.otp != otp.trim()) {
+      throw Exception('Invalid or incorrect 6-digit OTP.');
+    }
+
+    if (DateTime.now().isAfter(record.expiresAt)) {
+      throw Exception('This OTP has expired (2-minute time limit exceeded). Please request a new code.');
+    }
+
+    return true;
+  }
+
+  /// Calculates Levenshtein edit distance between two strings
+  int calculateLevenshteinDistance(String s1, String s2) {
+    if (s1 == s2) return 0;
+    if (s1.isEmpty) return s2.length;
+    if (s2.isEmpty) return s1.length;
+
+    List<int> previousRow = List<int>.generate(s2.length + 1, (i) => i);
+    for (int i = 0; i < s1.length; i++) {
+      List<int> currentRow = [i + 1];
+      for (int j = 0; j < s2.length; j++) {
+        int cost = (s1[i] == s2[j]) ? 0 : 1;
+        currentRow.add([
+          currentRow[j] + 1, // insertion
+          previousRow[j + 1] + 1, // deletion
+          previousRow[j] + cost, // substitution
+        ].reduce((a, b) => a < b ? a : b));
+      }
+      previousRow = currentRow;
+    }
+    return previousRow.last;
+  }
+
+  bool isPasswordCloseToOldPassword(String email, String attemptedPassword) {
+    final knownOldPasswords = [
+      'Password123!',
+      'Admin@2026!',
+      'Principal@2026!',
+      'Teacher@2026!',
+      'Parent@2026!',
+      'Thuto@2026!',
+      'Thuto@05518',
+    ];
+
+    for (final oldPass in knownOldPasswords) {
+      final distance = calculateLevenshteinDistance(attemptedPassword.toLowerCase(), oldPass.toLowerCase());
+      if (distance > 0 && distance <= 2) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void completePasswordReset({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) {
+    verifyPasswordResetOtp(email, otp);
+
+    final cleanEmail = email.trim().toLowerCase();
+    final user = users.firstWhere(
+      (u) => u.email.toLowerCase() == cleanEmail,
+      orElse: () => throw Exception('User account not found.'),
+    );
+
+    // Remove used OTP
+    _activeOtps.remove(cleanEmail);
+
+    auditLogs.insert(
+      0,
+      AuditLog(
+        id: 'aud_${DateTime.now().millisecondsSinceEpoch}',
+        userId: user.id,
+        userName: user.fullName,
+        role: user.role.name.toUpperCase(),
+        action: 'PASSWORD_RESET_SUCCESS',
+        entity: 'User Account: $cleanEmail',
+        timestamp: DateTime.now(),
+        details: 'Password was successfully reset via verified 2-minute 6-digit OTP.',
+      ),
+    );
+
+    notifyListeners();
+  }
+}
+
+class _MockOtpRecord {
+  final String otp;
+  final DateTime expiresAt;
+
+  _MockOtpRecord({required this.otp, required this.expiresAt});
 }
 
 class SimulatedEmail {

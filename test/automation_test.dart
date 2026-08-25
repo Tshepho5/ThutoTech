@@ -154,5 +154,45 @@ void main() {
       expect(registeredLearners[0]['learnerEmail'], contains('@thutotech.co.za'));
       expect(registeredLearners[1]['learnerEmail'], contains('@thutotech.co.za'));
     });
+
+    test('6. 6-Digit OTP Password Reset Flow with 2-Minute Expiry & Similarity Detection', () {
+      // Create test user in db
+      final testEmail = 'sipho.khumalo@thutotech.co.za';
+      db.users.add(User(
+        id: 'usr_test_sipho',
+        email: testEmail,
+        name: 'Sipho',
+        surname: 'Khumalo',
+        role: UserRole.teacher,
+        phone: '0820001122',
+        avatarUrl: '',
+        schoolId: 'sch_thutotech',
+      ));
+
+      // Step A: Request 6-digit OTP
+      final otp = db.requestPasswordResetOtp(testEmail);
+      expect(otp.length, equals(6));
+      expect(int.tryParse(otp), isNotNull);
+
+      // Verify OTP email dispatched
+      expect(db.simulatedEmails.any((e) => e.recipientEmail == testEmail && e.body.contains(otp)), isTrue);
+
+      // Step B: Verify OTP
+      expect(db.verifyPasswordResetOtp(testEmail, otp), isTrue);
+
+      // Step C: Test Password Similarity detector (e.g. 'Teacher@2026!' vs 'Teacher@2026')
+      final isSimilar = db.isPasswordCloseToOldPassword(testEmail, 'Teacher@2026');
+      expect(isSimilar, isTrue);
+
+      // Step D: Complete Password Reset
+      db.completePasswordReset(
+        email: testEmail,
+        otp: otp,
+        newPassword: 'BrandNewSecurePass2026!',
+      );
+
+      // Verify audit log
+      expect(db.auditLogs.any((a) => a.action == 'PASSWORD_RESET_SUCCESS' && a.entity.contains(testEmail)), isTrue);
+    });
   });
 }

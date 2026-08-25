@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS "application_learners" (
 -- 20. Automation Rules Table
 CREATE TABLE IF NOT EXISTS "automation_rules" (
     "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-    "name" VARCHAR(150) NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
     "eventName" VARCHAR(100) NOT NULL,
     "conditionDescription" TEXT NOT NULL,
     "actionDescription" TEXT NOT NULL,
@@ -340,6 +340,19 @@ CREATE TABLE IF NOT EXISTS "automation_rules" (
     "runCount" INT DEFAULT 0,
     "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 21. Password Reset OTP Table (2-Minute Expiry)
+CREATE TABLE IF NOT EXISTS "password_reset_otps" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    "email" VARCHAR(255) NOT NULL,
+    "otp" VARCHAR(6) NOT NULL,
+    "expiresAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+    "used" BOOLEAN DEFAULT FALSE,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "idx_password_reset_email" ON "password_reset_otps"("email");
+CREATE INDEX IF NOT EXISTS "idx_password_reset_otp" ON "password_reset_otps"("otp");
 
 -- Indexes for optimal performance
 CREATE INDEX IF NOT EXISTS "idx_users_email" ON "users"("email");
