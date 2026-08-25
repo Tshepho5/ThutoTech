@@ -6,42 +6,31 @@ export class EmailService {
   private static async getTransporter(): Promise<nodemailer.Transporter> {
     if (this.transporter) return this.transporter;
 
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const isGmail = (process.env.SMTP_HOST || '').includes('gmail') || (process.env.SMTP_USER || '').includes('gmail');
-      
-      this.transporter = isGmail
-        ? nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
-            },
-          })
-        : nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: Number(process.env.SMTP_PORT) === 465,
-            connectionTimeout: 5000,
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
-            },
-          });
-    } else {
-      // Fallback: Create instant test SMTP inbox via Ethereal for zero-friction testing
-      console.log('ℹ️ [EmailService] Generating instant test SMTP account via Ethereal...');
-      const testAccount = await nodemailer.createTestAccount();
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
-      console.log(`✅ [EmailService] Test SMTP ready: ${testAccount.user}`);
-    }
+    const smtpUser = process.env.SMTP_USER || 'thutotech.admin@gmail.com';
+    const smtpPass = process.env.SMTP_PASS || 'ohbuxyixijoutjlo';
+    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const smtpPort = Number(process.env.SMTP_PORT) || 587;
+
+    const isGmail = smtpHost.includes('gmail') || smtpUser.includes('gmail');
+
+    this.transporter = isGmail
+      ? nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        })
+      : nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          connectionTimeout: 8000,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
 
     return this.transporter;
   }

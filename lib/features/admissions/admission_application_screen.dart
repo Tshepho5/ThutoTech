@@ -20,7 +20,7 @@ class _LearnerFormEntry {
   String selectedHomeLang = 'English';
   String selectedFal = 'Afrikaans';
   String selectedStream = CapsCurriculum.fetStreams.first;
-  String documentName = 'Learner_ID_Copy.pdf';
+  String? documentName;
   PlatformFile? pickedFile;
   String? fileSizeString;
   AiVerificationResult? aiResult;
@@ -54,7 +54,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   final _primaryPasswordCtrl = TextEditingController();
   final _primaryConfirmPasswordCtrl = TextEditingController();
   SAIdInfo? _primaryIdInfo;
-  String _parentDocName = 'Primary_Parent_SA_ID.pdf';
+  String? _parentDocName;
   PlatformFile? _parentPickedFile;
   String? _parentFileSizeString;
 
@@ -66,7 +66,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   final _secPhoneCtrl = TextEditingController();
   final _secEmailCtrl = TextEditingController();
   SAIdInfo? _secIdInfo;
-  String _secParentDocName = 'Secondary_Parent_ID.pdf';
+  String? _secParentDocName;
   PlatformFile? _secParentPickedFile;
   String? _secParentFileSizeString;
 
@@ -96,13 +96,24 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         setState(() {
           _parentPickedFile = file;
           _parentDocName = file.name;
-          _parentFileSizeString = 'Document Attached';
+          _parentFileSizeString = 'Attached ✓';
         });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Attached Parent ID: ${file.name}', style: GoogleFonts.outfit()),
+              backgroundColor: AppTheme.primaryGreen,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+        );
+      }
     }
   }
 
@@ -117,13 +128,24 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         setState(() {
           _secParentPickedFile = file;
           _secParentDocName = file.name;
-          _secParentFileSizeString = 'Document Attached';
+          _secParentFileSizeString = 'Attached ✓';
         });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Attached Secondary Parent ID: ${file.name}', style: GoogleFonts.outfit()),
+              backgroundColor: AppTheme.primaryGreen,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+        );
+      }
     }
   }
 
@@ -138,13 +160,24 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         setState(() {
           entry.pickedFile = file;
           entry.documentName = file.name;
-          entry.fileSizeString = 'Document Attached';
+          entry.fileSizeString = 'Attached ✓';
         });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Attached Learner Document: ${file.name}', style: GoogleFonts.outfit()),
+              backgroundColor: AppTheme.primaryGreen,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not browse file: $e', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+        );
+      }
     }
   }
 
@@ -185,7 +218,6 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       }
     });
     setState(() {
-      newEntry.documentName = 'Learner_${_learners.length + 1}_ID_Copy.pdf';
       _learners.add(newEntry);
     });
   }
@@ -237,7 +269,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       formSurname: _primarySurnameCtrl.text,
       formIdNumber: _primaryIdCtrl.text,
       formGender: _primaryIdInfo?.gender,
-      fileName: _parentDocName,
+      fileName: _parentDocName ?? 'Primary_Parent_SA_ID.pdf',
     );
 
     // 2. Verify Secondary Parent if present
@@ -248,7 +280,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         formSurname: _secSurnameCtrl.text,
         formIdNumber: _secIdCtrl.text,
         formGender: _secIdInfo?.gender,
-        fileName: _secParentDocName,
+        fileName: _secParentDocName ?? 'Secondary_Parent_ID.pdf',
       );
     }
 
@@ -260,7 +292,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         formSurname: l.surnameCtrl.text,
         formIdNumber: l.idCtrl.text,
         formGender: l.idInfo?.gender,
-        fileName: l.documentName,
+        fileName: l.documentName ?? 'Learner_ID_Copy.pdf',
       );
       l.aiResult = lRes;
       learnerResults.add(lRes);
@@ -321,7 +353,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         firstAdditionalLanguage: l.selectedFal,
         stream: isFet ? l.selectedStream : null,
         previousSchool: l.prevSchoolCtrl.text.trim().isEmpty ? 'Not Specified' : l.prevSchoolCtrl.text.trim(),
-        documentName: l.documentName,
+        documentName: l.documentName ?? 'Learner_ID_Copy.pdf',
         documentVerified: isAiApproved,
       );
     }).toList();
@@ -335,7 +367,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       primaryParentIdNumber: _primaryIdCtrl.text.trim(),
       primaryParentGender: _primaryIdInfo?.gender,
       primaryParentDob: _primaryIdInfo?.dateOfBirth,
-      primaryParentDocumentName: _parentDocName,
+      primaryParentDocumentName: _parentDocName ?? 'Primary_Parent_SA_ID.pdf',
       hasSecondaryParent: _hasSecondaryParent,
       secondaryParentName: _hasSecondaryParent ? _secNameCtrl.text.trim() : null,
       secondaryParentSurname: _hasSecondaryParent ? _secSurnameCtrl.text.trim() : null,
@@ -415,13 +447,20 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                       'AI Match Status: ${isAiApproved ? "100% Validated (SA Biometric Match)" : "Discrepancy Detected"}',
                       style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed, fontSize: 12),
                     ),
+                    if (isAiApproved) ...[
+                      const Divider(height: 16),
+                      Text('Parent Portal Sign-In Credentials:', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryNavy)),
+                      const SizedBox(height: 4),
+                      Text('• Username / Email: ${_primaryEmailCtrl.text}', style: GoogleFonts.outfit(fontSize: 12)),
+                      Text('• Password: ${_primaryPasswordCtrl.text.isNotEmpty ? _primaryPasswordCtrl.text : "Password chosen in Step 1"}', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen)),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(height: 14),
               Text(
                 isAiApproved
-                    ? '✉️ An official ADMISSION ACCEPTANCE EMAIL with your registration token (${application.registrationToken}) for all ${application.learners.length} child(ren) has been dispatched to ${_primaryEmailCtrl.text}.'
+                    ? '✉️ A real ADMISSION ACCEPTANCE EMAIL with your registration token (${application.registrationToken}) has been dispatched to ${_primaryEmailCtrl.text} via Gmail SMTP.'
                     : '✉️ An automated REJECTION NOTICE with details regarding the document mismatch has been sent to ${_primaryEmailCtrl.text}.',
                 style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.secondaryNavy, height: 1.4),
               ),
@@ -434,7 +473,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
-            child: const Text('Return to Home'),
+            child: const Text('Return to Home / Sign In'),
           ),
         ],
       ),
@@ -452,13 +491,19 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         currentStep: _currentStep,
         onStepContinue: () {
           if (_currentStep == 0) {
-            if (_primaryNameCtrl.text.isEmpty ||
-                _primarySurnameCtrl.text.isEmpty ||
-                _primaryIdCtrl.text.length != 13 ||
-                _primaryPhoneCtrl.text.isEmpty ||
-                _primaryEmailCtrl.text.isEmpty) {
+            if (_primaryNameCtrl.text.trim().isEmpty ||
+                _primarySurnameCtrl.text.trim().isEmpty ||
+                _primaryIdCtrl.text.trim().length != 13 ||
+                _primaryPhoneCtrl.text.trim().isEmpty ||
+                _primaryEmailCtrl.text.trim().isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Please complete all primary parent contact and identification fields.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+              );
+              return;
+            }
+            if (_parentDocName == null || _parentDocName!.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Please upload the Primary Parent South African ID document copy.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
               );
               return;
             }
@@ -476,10 +521,17 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
             }
             setState(() => _currentStep = 1);
           } else if (_currentStep == 1) {
-            final invalidLearner = _learners.any((l) => l.nameCtrl.text.isEmpty || l.surnameCtrl.text.isEmpty || l.idCtrl.text.length != 13);
+            final invalidLearner = _learners.any((l) => l.nameCtrl.text.trim().isEmpty || l.surnameCtrl.text.trim().isEmpty || l.idCtrl.text.trim().length != 13);
             if (invalidLearner) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Please complete details for all learner(s) with valid 13-digit IDs.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+              );
+              return;
+            }
+            final missingDoc = _learners.any((l) => l.documentName == null || l.documentName!.isEmpty);
+            if (missingDoc) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Please upload the Birth Certificate / ID document for all learner(s).', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
               );
               return;
             }
@@ -984,51 +1036,68 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
 
   Widget _buildUploadPicker({
     required String label,
-    required String fileName,
+    required String? fileName,
     String? fileSize,
     required IconData icon,
     required VoidCallback onPick,
+    bool isRequired = true,
   }) {
+    final hasFile = fileName != null && fileName.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.shade50.withOpacity(0.5),
+        color: hasFile ? AppTheme.lightGreen.withOpacity(0.35) : Colors.blueGrey.shade50.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(
+          color: hasFile ? AppTheme.primaryGreen.withOpacity(0.6) : AppTheme.cardBorder,
+          width: hasFile ? 1.5 : 1.0,
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.primaryNavy, size: 24),
+          Icon(
+            hasFile ? Icons.check_circle_rounded : icon,
+            color: hasFile ? AppTheme.primaryGreen : AppTheme.primaryNavy,
+            size: 24,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12)),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     Flexible(
                       child: Text(
-                        fileName,
+                        hasFile ? fileName : 'No document selected yet',
                         style: GoogleFonts.outfit(
                           fontSize: 11,
-                          color: fileSize != null ? AppTheme.primaryNavy : AppTheme.textMuted,
-                          fontWeight: fileSize != null ? FontWeight.bold : FontWeight.normal,
+                          color: hasFile ? AppTheme.primaryNavy : AppTheme.textMuted,
+                          fontWeight: hasFile ? FontWeight.bold : FontWeight.normal,
+                          fontStyle: hasFile ? FontStyle.normal : FontStyle.italic,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (fileSize != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(fileSize, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: (hasFile ? AppTheme.primaryGreen : Colors.orange.shade800).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    ],
+                      child: Text(
+                        hasFile ? (fileSize ?? 'Attached ✓') : (isRequired ? 'Required *' : 'Optional'),
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: hasFile ? AppTheme.primaryGreen : Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1037,10 +1106,10 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
           const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: onPick,
-            icon: const Icon(Icons.folder_open_rounded, size: 14),
-            label: const Text('Browse', style: TextStyle(fontSize: 11)),
+            icon: Icon(hasFile ? Icons.refresh_rounded : Icons.folder_open_rounded, size: 14),
+            label: Text(hasFile ? 'Change' : 'Browse', style: const TextStyle(fontSize: 11)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryNavy,
+              backgroundColor: hasFile ? AppTheme.primaryGreen : AppTheme.primaryNavy,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               minimumSize: const Size(80, 32),
@@ -1051,31 +1120,50 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
     );
   }
 
-  Widget _buildUploadSummary(String title, String fileName, IconData icon) {
+  Widget _buildUploadSummary(String title, String? fileName, IconData icon) {
+    final hasFile = fileName != null && fileName.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: hasFile ? Colors.white : Colors.red.shade50.withOpacity(0.4),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.cardBorder),
+        border: Border.all(color: hasFile ? AppTheme.cardBorder : Colors.red.shade200),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.primaryNavy, size: 20),
+          Icon(icon, color: hasFile ? AppTheme.primaryNavy : AppTheme.dangerRed, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12)),
-                Text(fileName, style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
+                Text(
+                  hasFile ? 'File: $fileName' : 'No document uploaded',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    color: hasFile ? AppTheme.textMuted : AppTheme.dangerRed,
+                    fontStyle: hasFile ? FontStyle.normal : FontStyle.italic,
+                  ),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: AppTheme.lightGreen, borderRadius: BorderRadius.circular(6)),
-            child: Text('Attached ✓', style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
+            decoration: BoxDecoration(
+              color: hasFile ? AppTheme.lightGreen : Colors.red.shade100,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              hasFile ? 'Attached ✓' : 'Missing ⚠️',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: hasFile ? AppTheme.primaryGreen : AppTheme.dangerRed,
+              ),
+            ),
           ),
         ],
       ),

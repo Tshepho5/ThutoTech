@@ -477,6 +477,29 @@ class MockDatabase extends ChangeNotifier {
       registrationToken: app.registrationToken,
     );
 
+    // Auto-activate parent user account if password was created during application
+    if (app.primaryParentPassword != null && app.primaryParentPassword!.isNotEmpty) {
+      final existingUserIndex = users.indexWhere((u) => u.email.toLowerCase() == app.primaryParentEmail.toLowerCase().trim());
+      if (existingUserIndex == -1) {
+        users.add(
+          User(
+            id: 'usr_par_${app.id}',
+            email: app.primaryParentEmail.trim().toLowerCase(),
+            name: app.primaryParentName.trim(),
+            surname: app.primaryParentSurname.trim(),
+            role: UserRole.parent,
+            phone: app.primaryParentPhone.trim(),
+            avatarUrl: '',
+            schoolId: 'sch_thutotech',
+            password: app.primaryParentPassword!.trim(),
+            twoFactorEnabled: false,
+          ),
+        );
+      } else {
+        users[existingUserIndex].password = app.primaryParentPassword!.trim();
+      }
+    }
+
     // 2. Record In-App Notification for active session
     notifications.insert(
       0,
@@ -595,6 +618,8 @@ LEARN • CONNECT • EMPOWER
       phone: matchingAdm.primaryParentPhone,
       avatarUrl: '',
       schoolId: 'sch_thutotech',
+      password: parentPassword,
+      twoFactorEnabled: false,
     );
 
     final List<String> createdLearnerIds = [];

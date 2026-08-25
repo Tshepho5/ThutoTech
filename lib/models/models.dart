@@ -48,7 +48,7 @@ class User {
   final String avatarUrl;
   final String schoolId;
   final String status; // ACTIVE, INVITED, DEACTIVATED
-  final String? password;
+  String? password;
   final bool twoFactorEnabled;
 
   User({
