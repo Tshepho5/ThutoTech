@@ -24,17 +24,17 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({ isOpen, onCl
               </div>
               <div>
                 <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--primary-navy)' }}>Android App</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>APK / Play Store</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>APK / Android Package</div>
               </div>
             </div>
             <a
-              href="https://github.com/Tshepho5/ThutoTechApp/releases"
+              href="https://github.com/Tshepho5/ThutoTechApp/releases/tag/v1.0.0"
               target="_blank"
               rel="noreferrer"
               className="btn btn-primary"
               style={{ fontSize: '12px', padding: '8px 12px', marginTop: 'auto' }}
             >
-              <Download size={14} /> Download APK (v1.0)
+              <Download size={14} /> Download APK (v1.0.0)
             </a>
           </div>
 
@@ -46,17 +46,17 @@ export const AppDownloadModal: React.FC<AppDownloadModalProps> = ({ isOpen, onCl
               </div>
               <div>
                 <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--primary-navy)' }}>Windows PC</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>MSIX / Setup .exe</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Desktop Application</div>
               </div>
             </div>
             <a
-              href="https://github.com/Tshepho5/ThutoTechApp/releases"
+              href="https://github.com/Tshepho5/ThutoTechApp/releases/tag/v1.0.0"
               target="_blank"
               rel="noreferrer"
               className="btn btn-navy"
               style={{ fontSize: '12px', padding: '8px 12px', marginTop: 'auto' }}
             >
-              <Download size={14} /> Windows Installer
+              <Download size={14} /> Windows Package (v1.0.0)
             </a>
           </div>
 

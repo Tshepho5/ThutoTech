@@ -53,6 +53,14 @@ apiRouter.get('/', (req, res) => {
   });
 });
 
+// --- APP DOWNLOADS ---
+apiRouter.get('/download/apk', (req, res) => {
+  res.redirect('https://github.com/Tshepho5/ThutoTechApp/releases/tag/v1.0.0');
+});
+apiRouter.get('/download/windows', (req, res) => {
+  res.redirect('https://github.com/Tshepho5/ThutoTechApp/releases/tag/v1.0.0');
+});
+
 // --- ADMISSIONS & ONBOARDING ---
 apiRouter.post('/admissions/apply', validateAdmissionApplication, AdmissionsController.apply);
 apiRouter.get('/admissions', authenticateToken, requireRole([UserRole.ADMIN, UserRole.PRINCIPAL]), AdmissionsController.getApplications);
