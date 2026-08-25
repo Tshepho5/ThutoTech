@@ -113,7 +113,7 @@ async function bootstrap() {
   await connectDatabase();
   app.listen(PORT, () => {
     console.log(`🚀 ThutoTech Backend Server is actively running on port ${PORT}`);
-    console.log(`📡 Base API Endpoint: http://localhost:${PORT}/api/v1`);
+    console.log(`📡 Base API Endpoint: http://localhost:${PORT}`);
   });
 }
 
