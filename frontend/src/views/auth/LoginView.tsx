@@ -152,6 +152,32 @@ export const LoginView: React.FC<LoginViewProps> = ({
               {isLoading ? 'Authenticating...' : 'Sign In to Portal'}
               {!isLoading && <ArrowRight size={18} />}
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIdentifier('thutotech.admin@gmail.com');
+                setPassword('#Admin#$5$');
+              }}
+              style={{
+                width: '100%',
+                marginTop: '10px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: 'var(--danger-red)',
+                borderRadius: '8px',
+                padding: '8px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
+              <ShieldCheck size={14} /> Quick-Fill Super Admin (Lebogang Makola)
+            </button>
           </form>
 
           {/* Quick Onboarding Links */}
