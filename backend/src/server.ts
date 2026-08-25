@@ -21,6 +21,11 @@ app.use(morgan('dev'));
 // API Routes
 app.use('/api/v1', apiRouter);
 
+// Root Info Endpoint
+app.get('/', (req, res) => {
+  res.redirect('/api/v1');
+});
+
 // Health Check Endpoint
 app.get('/health', (req, res) => {
   res.json({

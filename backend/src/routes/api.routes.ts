@@ -9,6 +9,49 @@ import { UserRole } from '@prisma/client';
 
 export const apiRouter = Router();
 
+// Root API Explorer
+apiRouter.get('/', (req, res) => {
+  res.json({
+    name: 'ThutoTech Ecosystem API',
+    version: '1.0.0',
+    status: 'ACTIVE',
+    motto: 'LEARN • CONNECT • EMPOWER',
+    documentation: {
+      health: 'GET /health',
+      admissions: {
+        apply: 'POST /api/v1/admissions/apply',
+        list: 'GET /api/v1/admissions',
+        approve: 'POST /api/v1/admissions/:id/approve',
+        register: 'POST /api/v1/auth/register',
+      },
+      auth: {
+        login: 'POST /api/v1/auth/login',
+        me: 'GET /api/v1/auth/me',
+      },
+      learner: {
+        dashboard: 'GET /api/v1/learner/dashboard',
+        submit: 'POST /api/v1/learner/submissions',
+      },
+      parent: {
+        children: 'GET /api/v1/parent/children',
+      },
+      teacher: {
+        createAssignment: 'POST /api/v1/teacher/assignments',
+        grade: 'POST /api/v1/teacher/submissions/grade',
+        attendance: 'POST /api/v1/teacher/attendance',
+      },
+      principal: {
+        announcements: 'POST /api/v1/principal/announcements',
+      },
+      admin: {
+        users: 'GET /api/v1/admin/users',
+        auditLogs: 'GET /api/v1/admin/audit-logs',
+        systemHealth: 'GET /api/v1/admin/system-health',
+      },
+    },
+  });
+});
+
 // --- ADMISSIONS & ONBOARDING ---
 apiRouter.post('/admissions/apply', validateAdmissionApplication, AdmissionsController.apply);
 apiRouter.get('/admissions', authenticateToken, requireRole([UserRole.ADMIN, UserRole.PRINCIPAL]), AdmissionsController.getApplications);
