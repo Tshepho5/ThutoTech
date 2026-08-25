@@ -38,9 +38,9 @@ export const App: React.FC = () => {
     if (!currentUser) return null;
     switch (currentUser.role) {
       case 'ADMIN':
-        return <AdminDashboard currentUser={currentUser} />;
+        return <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />;
       case 'PRINCIPAL':
-        return <AdminDashboard currentUser={currentUser} />;
+        return <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />;
       case 'TEACHER':
         return <TeacherDashboard currentUser={currentUser} />;
       case 'PARENT':
@@ -51,6 +51,18 @@ export const App: React.FC = () => {
         return <AdminDashboard currentUser={currentUser} />;
     }
   };
+
+  if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'PRINCIPAL')) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
+        <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
+        <AppDownloadModal
+          isOpen={isDownloadModalOpen}
+          onClose={() => setIsDownloadModalOpen(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
