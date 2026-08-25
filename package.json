@@ -1,0 +1,18 @@
+{
+  "name": "thutotech-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ThutoTech Digital School Ecosystem",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "backend:start": "npm --prefix backend run start",
+    "backend:migrate": "npm --prefix backend run prisma:migrate",
+    "backend:studio": "npm --prefix backend run prisma:studio",
+    "app": "flutter run",
+    "app:run": "flutter run",
+    "app:test": "flutter test",
+    "test": "flutter test"
+  }
+}
