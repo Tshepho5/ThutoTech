@@ -5,6 +5,7 @@ import 'data/mock_database.dart';
 import 'features/admin/admin_dashboard.dart';
 import 'features/admissions/admission_application_screen.dart';
 import 'features/admissions/registration_screen.dart';
+import 'features/auth/login_screen.dart';
 import 'features/learner/learner_dashboard.dart';
 import 'features/parent/parent_dashboard.dart';
 import 'features/principal/principal_dashboard.dart';
@@ -28,20 +29,21 @@ class ThutoTechApp extends StatelessWidget {
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
       themeMode: ThemeMode.light,
-      home: const MainContainerScreen(),
+      home: const MainAppWrapper(),
     );
   }
 }
 
-class MainContainerScreen extends StatefulWidget {
-  const MainContainerScreen({super.key});
+class MainAppWrapper extends StatefulWidget {
+  const MainAppWrapper({super.key});
 
   @override
-  State<MainContainerScreen> createState() => _MainContainerScreenState();
+  State<MainAppWrapper> createState() => _MainAppWrapperState();
 }
 
-class _MainContainerScreenState extends State<MainContainerScreen> {
+class _MainAppWrapperState extends State<MainAppWrapper> {
   final MockDatabase _db = MockDatabase();
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
@@ -76,6 +78,17 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isAuthenticated && _db.currentUser == null) {
+      return LoginScreen(
+        db: _db,
+        onLoginSuccess: () {
+          setState(() {
+            _isAuthenticated = true;
+          });
+        },
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -144,17 +157,26 @@ class _MainContainerScreenState extends State<MainContainerScreen> {
             tooltip: 'System Notifications',
             onPressed: _showNotificationsModal,
           ),
+          // Sign out
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+            tooltip: 'Sign Out',
+            onPressed: () {
+              setState(() {
+                _db.currentUser = null;
+                _isAuthenticated = false;
+              });
+            },
+          ),
           const SizedBox(width: 4),
         ],
       ),
       body: Column(
         children: [
-          // Interactive Role Switcher Bar
           RoleSwitcherBar(
             db: _db,
             onRoleSwitched: () => setState(() {}),
           ),
-          // Dynamic Active Portal
           Expanded(child: _getCurrentPortal()),
         ],
       ),

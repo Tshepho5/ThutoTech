@@ -17,41 +17,42 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _tokenController = TextEditingController();
-  final _parentNameController = TextEditingController();
-  final _parentSurnameController = TextEditingController();
-  final _parentEmailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _tokenCtrl = TextEditingController();
+  final _parentNameCtrl = TextEditingController();
+  final _parentSurnameCtrl = TextEditingController();
+  final _parentEmailCtrl = TextEditingController();
+  final _parentPasswordCtrl = TextEditingController();
 
-  final _learnerNameController = TextEditingController();
-  final _learnerSurnameController = TextEditingController();
-  final _learnerIdController = TextEditingController();
+  final _learnerNameCtrl = TextEditingController();
+  final _learnerSurnameCtrl = TextEditingController();
+  final _learnerIdCtrl = TextEditingController();
 
+  bool _obscurePassword = true;
   bool _isLoading = false;
   String? _generalError;
 
   @override
   void dispose() {
-    _tokenController.dispose();
-    _parentNameController.dispose();
-    _parentSurnameController.dispose();
-    _parentEmailController.dispose();
-    _passwordController.dispose();
-    _learnerNameController.dispose();
-    _learnerSurnameController.dispose();
-    _learnerIdController.dispose();
+    _tokenCtrl.dispose();
+    _parentNameCtrl.dispose();
+    _parentSurnameCtrl.dispose();
+    _parentEmailCtrl.dispose();
+    _parentPasswordCtrl.dispose();
+    _learnerNameCtrl.dispose();
+    _learnerSurnameCtrl.dispose();
+    _learnerIdCtrl.dispose();
     super.dispose();
   }
 
   void _autofillFromApprovedApplication(AdmissionApplication app) {
     setState(() {
-      _tokenController.text = app.registrationToken;
-      _parentNameController.text = app.primaryParentName;
-      _parentSurnameController.text = app.primaryParentSurname;
-      _parentEmailController.text = app.primaryParentEmail;
-      _learnerNameController.text = app.learnerName;
-      _learnerSurnameController.text = app.learnerSurname;
-      _learnerIdController.text = app.learnerIdNumber;
+      _tokenCtrl.text = app.registrationToken;
+      _parentNameCtrl.text = app.primaryParentName;
+      _parentSurnameCtrl.text = app.primaryParentSurname;
+      _parentEmailCtrl.text = app.primaryParentEmail;
+      _learnerNameCtrl.text = app.learnerName;
+      _learnerSurnameCtrl.text = app.learnerSurname;
+      _learnerIdCtrl.text = app.learnerIdNumber;
       _generalError = null;
     });
   }
@@ -60,57 +61,96 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() => _generalError = null);
 
     if (!_formKey.currentState!.validate()) {
-      setState(() {
-        _generalError = 'Please fix all field validation errors highlighted in red below.';
-      });
+      setState(() => _generalError = 'Please fix all highlighted errors.');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final success = widget.db.completeRegistration(
-        registrationToken: _tokenController.text.trim(),
-        parentName: _parentNameController.text.trim(),
-        parentSurname: _parentSurnameController.text.trim(),
-        parentEmail: _parentEmailController.text.trim(),
-        parentPassword: _passwordController.text.trim(),
-        learnerName: _learnerNameController.text.trim(),
-        learnerSurname: _learnerSurnameController.text.trim(),
-        learnerIdNumber: _learnerIdController.text.trim(),
+      final creds = widget.db.completeRegistration(
+        registrationToken: _tokenCtrl.text.trim(),
+        parentName: _parentNameCtrl.text.trim(),
+        parentSurname: _parentSurnameCtrl.text.trim(),
+        parentEmail: _parentEmailCtrl.text.trim(),
+        parentPassword: _parentPasswordCtrl.text.trim(),
+        learnerName: _learnerNameCtrl.text.trim(),
+        learnerSurname: _learnerSurnameCtrl.text.trim(),
+        learnerIdNumber: _learnerIdCtrl.text.trim(),
       );
 
       setState(() => _isLoading = false);
 
-      if (success) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 28),
-                const SizedBox(width: 10),
-                Text('Registration Successful!', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            content: Text(
-              'Your parent and learner accounts have been activated. You are now logged into the ThutoTech Parent Portal.',
-              style: GoogleFonts.outfit(fontSize: 14),
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-                child: const Text('Go to Parent Dashboard'),
+      // Show Success Dialog with Generated Learner Credentials
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: AppTheme.primaryGreen, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Registration & Credentials Generated!', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 17)),
               ),
             ],
           ),
-        );
-      }
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Parent account and Learner profile have been activated. An official confirmation email with these login details was sent to ${_parentEmailCtrl.text}.',
+                  style: GoogleFonts.outfit(fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Official Learner Credentials:', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Divider(color: Colors.white24, height: 16),
+                      Text('Student Number: ${creds["learnerNumber"]}', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text('Learner Login Email: ${creds["learnerEmail"]}', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Text('Generated Password: ${creds["generatedPassword"]}', style: GoogleFonts.outfit(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 8),
+                      Text(
+                        '(Password generated via systematic algorithm from 13-digit ID)',
+                        style: GoogleFonts.outfit(color: Colors.white54, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
+                  child: Text('Parent Login Email: ${_parentEmailCtrl.text}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+              },
+              child: const Text('Proceed to Parent Dashboard'),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -125,10 +165,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Complete School Registration',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+        title: Text('Complete Registration', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -137,29 +174,25 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Card
+              // Header
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppTheme.lightGreen,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.verified_user_rounded, color: AppTheme.primaryGreen, size: 30),
-                    const SizedBox(width: 14),
+                    const Icon(Icons.verified_user_rounded, color: AppTheme.primaryGreen, size: 28),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text('Activate Approved Enrollment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15)),
                           Text(
-                            'Official Enrollment Activation',
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryNavy),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Enter your Admission Registration Token sent to your email to create your official credentials.',
+                            'Enter your registration token from your approval email. The system will activate parent access and automatically generate the learner credentials.',
                             style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
                           ),
                         ],
@@ -171,7 +204,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
               const SizedBox(height: 16),
 
-              // Fast Demo Autofill if approved applications exist
               if (approvedApplications.isNotEmpty) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -187,10 +219,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         children: [
                           const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.warningOrange),
                           const SizedBox(width: 6),
-                          Text(
-                            'Quick Demo Token Autofill (From Approved Applications):',
-                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-                          ),
+                          Text('Autofill from Approved Admission Queue:', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold)),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -213,47 +242,33 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               if (_generalError != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.dangerRed.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.dangerRed),
-                  ),
+                  decoration: BoxDecoration(color: AppTheme.dangerRed.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.dangerRed)),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_rounded, color: AppTheme.dangerRed, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _generalError!,
-                          style: GoogleFonts.outfit(color: AppTheme.dangerRed, fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ),
+                      const Icon(Icons.error_outline_rounded, color: AppTheme.dangerRed, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(_generalError!, style: GoogleFonts.outfit(color: AppTheme.dangerRed, fontSize: 12, fontWeight: FontWeight.w600))),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
 
-              // TOKEN FIELD
               ValidatedTextField(
-                controller: _tokenController,
+                controller: _tokenCtrl,
                 label: 'Admission Registration Token',
                 hint: 'e.g. REG-TT-88912',
                 dataType: InputDataType.general,
                 prefixIcon: Icons.key_rounded,
               ),
 
-              const Divider(height: 32),
+              const Divider(height: 28),
 
-              // PARENT REGISTRATION SECTION
-              Text(
-                'Parent Account Details',
-                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-              ),
-              const SizedBox(height: 12),
+              Text('Parent Account Details', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+              const SizedBox(height: 10),
 
               ValidatedTextField(
-                controller: _parentNameController,
+                controller: _parentNameCtrl,
                 label: 'Parent Name(s)',
                 hint: 'Letters only (e.g. Sibusiso)',
                 dataType: InputDataType.textOnly,
@@ -261,7 +276,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
 
               ValidatedTextField(
-                controller: _parentSurnameController,
+                controller: _parentSurnameCtrl,
                 label: 'Parent Surname',
                 hint: 'Letters only (e.g. Makola)',
                 dataType: InputDataType.textOnly,
@@ -269,37 +284,30 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
 
               ValidatedTextField(
-                controller: _parentEmailController,
-                label: 'Parent Email (Login Username)',
+                controller: _parentEmailCtrl,
+                label: 'Parent Email (Username)',
                 hint: 'parent@example.com',
                 dataType: InputDataType.email,
                 prefixIcon: Icons.email_outlined,
               ),
 
               ValidatedTextField(
-                controller: _passwordController,
-                label: 'Create Secure Password',
-                hint: 'Minimum 6 characters',
+                controller: _parentPasswordCtrl,
+                label: 'Create Parent Password',
+                hint: 'Min 6 characters',
                 dataType: InputDataType.password,
                 isPassword: true,
                 prefixIcon: Icons.lock_outline,
               ),
 
-              const Divider(height: 32),
+              const Divider(height: 28),
 
-              // LEARNER REGISTRATION SECTION
-              Text(
-                'Learner Profile Details',
-                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-              ),
-              Text(
-                'Requires only Learner ID Number, First Name(s), and Surname:',
-                style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
-              ),
-              const SizedBox(height: 12),
+              Text('Learner Profile Details', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+              Text('Requires only Learner ID number, First Name(s), and Surname:', style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted)),
+              const SizedBox(height: 10),
 
               ValidatedTextField(
-                controller: _learnerIdController,
+                controller: _learnerIdCtrl,
                 label: 'Learner National ID Number',
                 hint: '13-digit National ID (Numbers only)',
                 dataType: InputDataType.idNumber,
@@ -308,7 +316,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
 
               ValidatedTextField(
-                controller: _learnerNameController,
+                controller: _learnerNameCtrl,
                 label: 'Learner First Name(s)',
                 hint: 'Letters only (e.g. Thabo)',
                 dataType: InputDataType.textOnly,
@@ -316,7 +324,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
 
               ValidatedTextField(
-                controller: _learnerSurnameController,
+                controller: _learnerSurnameCtrl,
                 label: 'Learner Surname',
                 hint: 'Letters only (e.g. Makola)',
                 dataType: InputDataType.textOnly,
@@ -331,11 +339,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   onPressed: _isLoading ? null : _submitRegistration,
                   icon: _isLoading
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.how_to_reg_rounded, size: 20),
-                  label: Text(
-                    _isLoading ? 'Activating Accounts...' : 'Complete Registration & Log In',
-                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                      : const Icon(Icons.how_to_reg_rounded),
+                  label: Text(_isLoading ? 'Activating...' : 'Register & Generate Credentials', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                 ),
               ),

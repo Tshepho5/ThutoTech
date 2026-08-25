@@ -50,24 +50,18 @@ class RoleSwitcherBar extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       selected: isSelected,
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            role.icon,
-                            size: 14,
-                            color: isSelected ? Colors.white : Colors.white70,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            role.displayName,
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? Colors.white : Colors.white70,
-                            ),
-                          ),
-                        ],
+                      avatar: Icon(
+                        role.icon,
+                        size: 14,
+                        color: isSelected ? Colors.white : Colors.white70,
+                      ),
+                      label: Text(
+                        role.displayName,
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? Colors.white : Colors.white70,
+                        ),
                       ),
                       selectedColor: AppTheme.primaryGreen,
                       backgroundColor: AppTheme.secondaryNavy.withOpacity(0.6),

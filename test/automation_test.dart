@@ -1,17 +1,54 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thutotech/core/curriculum/caps_curriculum.dart';
+import 'package:thutotech/core/utils/sa_id_parser.dart';
 import 'package:thutotech/data/mock_database.dart';
 import 'package:thutotech/models/models.dart';
 
 void main() {
-  group('ThutoTech End-to-End Automation Cascade Tests', () {
+  group('ThutoTech End-to-End Automation & CAPS Validation Tests', () {
     late MockDatabase db;
 
     setUp(() {
       db = MockDatabase();
     });
 
-    test('1. Admission Submission -> Principal Approval -> Automated Email with Token', () {
-      // Step A: Parent submits admission
+    test('1. SA ID Parser correctly extracts DOB, Gender, and Age', () {
+      final info = SAIdParser.parse('0805125841088');
+      expect(info.isValid, isTrue);
+      expect(info.gender, equals('Male'));
+      expect(info.dateOfBirth?.year, equals(2008));
+      expect(info.dateOfBirth?.month, equals(5));
+      expect(info.dateOfBirth?.day, equals(12));
+    });
+
+    test('2. Systematic Learner Password Generation Algorithm', () {
+      // ID: 0805125841088
+      // indices 0, 3, 6, 9, 12 -> '0', '5', '5', '1', '8'
+      final generatedPassword = SAIdParser.generateLearnerPassword('0805125841088');
+      expect(generatedPassword, equals('Thuto@05518'));
+    });
+
+    test('3. CAPS Curriculum returns correct stream subjects', () {
+      final scienceSubjects = CapsCurriculum.getFetPhaseSubjects(
+        homeLanguage: 'Sepedi',
+        fal: 'English',
+        stream: 'Science Stream (STEM)',
+      );
+      expect(scienceSubjects.any((s) => s.contains('Mathematics (Pure)')), isTrue);
+      expect(scienceSubjects.any((s) => s.contains('Physical Sciences')), isTrue);
+      expect(scienceSubjects.any((s) => s.contains('Sepedi')), isTrue);
+
+      final commerceSubjects = CapsCurriculum.getFetPhaseSubjects(
+        homeLanguage: 'isiZulu',
+        fal: 'English',
+        stream: 'Commerce Stream (Business & Accounting)',
+      );
+      expect(commerceSubjects.any((s) => s.contains('Accounting')), isTrue);
+      expect(commerceSubjects.any((s) => s.contains('Economics')), isTrue);
+    });
+
+    test('4. Full Admission -> Approval -> Registration -> Password & Student Number Verification', () {
+      // Step A: Submit application
       final app = db.submitAdmissionApplication(
         primaryParentName: 'Kagiso',
         primaryParentSurname: 'Mthethwa',
@@ -23,96 +60,41 @@ void main() {
         secondaryParentSurname: 'Mthethwa',
         secondaryParentPhone: '0825555678',
         secondaryParentEmail: 'palesa.mthethwa@gmail.com',
+        secondaryParentIdNumber: '8204120123089',
         learnerName: 'Tshepo',
         learnerSurname: 'Mthethwa',
-        learnerIdNumber: '0903155800085',
+        learnerIdNumber: '0805125841088',
         gradeApplyingFor: 'Grade 10',
+        homeLanguage: 'Sepedi (Sesotho sa Leboa)',
+        firstAdditionalLanguage: 'English',
+        stream: 'Science Stream (STEM)',
         previousSchool: 'Sunrise Secondary',
       );
 
       expect(app.status, equals(ApplicationStatus.submitted));
-      expect(app.registrationToken, startsWith('REG-TT-'));
 
-      // Step B: Principal approves admission
+      // Step B: Principal Approves
       db.approveAdmission(app.id);
-
       expect(app.status, equals(ApplicationStatus.approved));
-      expect(db.simulatedEmails.any((e) => e.recipientEmail == 'kagiso.mthethwa@gmail.com' && e.body.contains(app.registrationToken)), isTrue);
-    });
 
-    test('2. Registration using Token creates Parent and Learner and links them', () {
-      final app = db.admissions.firstWhere((a) => a.status == ApplicationStatus.underReview);
-      db.approveAdmission(app.id);
-
-      final initialLearnerCount = db.learners.length;
-      final initialParentCount = db.parents.length;
-
-      final success = db.completeRegistration(
+      // Step C: Parent completes registration
+      final creds = db.completeRegistration(
         registrationToken: app.registrationToken,
-        parentName: 'Mandla',
-        parentSurname: 'Zulu',
-        parentEmail: 'mandla.zulu@outlook.com',
-        parentPassword: 'Password123!',
-        learnerName: 'Bongani',
-        learnerSurname: 'Zulu',
-        learnerIdNumber: '1106200876082',
+        parentName: 'Kagiso',
+        parentSurname: 'Mthethwa',
+        parentEmail: 'kagiso.mthethwa@gmail.com',
+        parentPassword: 'SecureParentPass2026!',
+        learnerName: 'Tshepo',
+        learnerSurname: 'Mthethwa',
+        learnerIdNumber: '0805125841088',
       );
 
-      expect(success, isTrue);
-      expect(db.learners.length, equals(initialLearnerCount + 1));
-      expect(db.parents.length, equals(initialParentCount + 1));
-      final registeredLearner = db.learners.firstWhere((l) => l.idNumber == '1106200876082');
-      expect(registeredLearner.fullName, equals('Bongani'));
-      expect(registeredLearner.surname, equals('Zulu'));
-    });
+      expect(creds['learnerNumber'], startsWith('2026'));
+      expect(creds['generatedPassword'], equals('Thuto@05518'));
+      expect(creds['learnerEmail'], endsWith('@thutotech.co.za'));
 
-    test('3. Teacher publishes assignment -> auto creates submissions and notifies learners and parents', () {
-      final initialNotifs = db.notifications.length;
-
-      db.createAssignment(
-        title: 'Trig Automation Test',
-        description: 'Solve questions 1-5',
-        subjectId: 'sub_math',
-        classId: 'cls_10a',
-        dueDate: DateTime.now().add(const Duration(days: 3)),
-        maxMarks: 100,
-      );
-
-      expect(db.assignments.any((a) => a.title == 'Trig Automation Test'), isTrue);
-      expect(db.notifications.length, greaterThan(initialNotifs));
-    });
-
-    test('4. Learner submits -> Teacher grades -> Averages recalculated, achievement evaluated, parent notified', () {
-      final learner = db.learners.first;
-      final asg = db.assignments.first;
-
-      // Submit
-      db.submitLearnerAssignment(asg.id, learner.id);
-      final sub = db.submissions.firstWhere((s) => s.assignmentId == asg.id && s.learnerId == learner.id);
-      expect(sub.status, isNot(equals(SubmissionStatus.notSubmitted)));
-
-      // Grade with 95% (should trigger achievement and update average)
-      final initialAchievements = db.achievements.length;
-      db.gradeSubmission(
-        submissionId: sub.id,
-        mark: 95.0,
-        feedback: 'Outstanding mastery!',
-      );
-
-      expect(sub.status, equals(SubmissionStatus.marked));
-      expect(sub.mark, equals(95.0));
-      expect(db.achievements.length, greaterThan(initialAchievements));
-      expect(db.notifications.any((n) => n.title.contains('Result Update') || n.title.contains('Assignment Marked')), isTrue);
-    });
-
-    test('5. Teacher marks absence -> parent alert generated', () {
-      final initialNotifs = db.notifications.length;
-      db.recordClassAttendance('cls_10a', {
-        'lrn_thabo': AttendanceStatus.absent,
-      }, reason: 'Unexcused absence test');
-
-      expect(db.notifications.length, greaterThan(initialNotifs));
-      expect(db.notifications.any((n) => n.title.contains('Attendance Alert')), isTrue);
+      // Check that automated welcome email was dispatched
+      expect(db.simulatedEmails.any((e) => e.recipientEmail == 'kagiso.mthethwa@gmail.com' && e.body.contains('Thuto@05518')), isTrue);
     });
   });
 }

@@ -67,11 +67,18 @@ class User {
 class Learner {
   final String id;
   final String userId;
+  final String? learnerNumber; // e.g. 20260001
   final String idNumber;
   final String fullName;
   final String surname;
+  final String? gender;
+  final DateTime? dateOfBirth;
+  final int? age;
   final String grade;
   final String className;
+  final String? homeLanguage;
+  final String? firstAdditionalLanguage;
+  final String? stream;
   final String schoolId;
   final String parentId;
   final String? secondaryParentId;
@@ -81,16 +88,23 @@ class Learner {
   Learner({
     required this.id,
     required this.userId,
+    this.learnerNumber,
     required this.idNumber,
     required this.fullName,
     required this.surname,
+    this.gender,
+    this.dateOfBirth,
+    this.age,
     required this.grade,
     required this.className,
+    this.homeLanguage,
+    this.firstAdditionalLanguage,
+    this.stream,
     required this.schoolId,
     required this.parentId,
     this.secondaryParentId,
-    this.attendancePercentage = 95.0,
-    this.overallAverage = 78.0,
+    this.attendancePercentage = 100.0,
+    this.overallAverage = 0.0,
   });
 
   String get completeName => '$fullName $surname';
@@ -357,18 +371,30 @@ class AdmissionApplication {
   final String primaryParentPhone;
   final String primaryParentEmail;
   final String primaryParentIdNumber;
+  final String? primaryParentGender;
+  final DateTime? primaryParentDob;
   // Optional Secondary Parent
   final bool hasSecondaryParent;
   final String? secondaryParentName;
   final String? secondaryParentSurname;
   final String? secondaryParentPhone;
   final String? secondaryParentEmail;
+  final String? secondaryParentIdNumber;
+  final String? secondaryParentGender;
+  final DateTime? secondaryParentDob;
   // Learner Info
   final String learnerName;
   final String learnerSurname;
   final String learnerIdNumber;
+  final String? learnerGender;
+  final DateTime? learnerDob;
+  final int? learnerAge;
   final String gradeApplyingFor;
+  final String homeLanguage;
+  final String? firstAdditionalLanguage;
+  final String? stream;
   final String previousSchool;
+  final bool documentVerified;
   // Status
   ApplicationStatus status;
   final String registrationToken;
@@ -384,16 +410,28 @@ class AdmissionApplication {
     required this.primaryParentPhone,
     required this.primaryParentEmail,
     required this.primaryParentIdNumber,
+    this.primaryParentGender,
+    this.primaryParentDob,
     this.hasSecondaryParent = false,
     this.secondaryParentName,
     this.secondaryParentSurname,
     this.secondaryParentPhone,
     this.secondaryParentEmail,
+    this.secondaryParentIdNumber,
+    this.secondaryParentGender,
+    this.secondaryParentDob,
     required this.learnerName,
     required this.learnerSurname,
     required this.learnerIdNumber,
+    this.learnerGender,
+    this.learnerDob,
+    this.learnerAge,
     required this.gradeApplyingFor,
+    this.homeLanguage = 'English',
+    this.firstAdditionalLanguage = 'Afrikaans',
+    this.stream,
     required this.previousSchool,
+    this.documentVerified = false,
     this.status = ApplicationStatus.submitted,
     required this.registrationToken,
     required this.submittedAt,
