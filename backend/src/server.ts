@@ -36,6 +36,10 @@ app.get('/health', (req, res) => {
 
 // Serve Flutter Web if build directory exists
 const candidates = [
+  path.resolve(__dirname, '../public'),
+  path.resolve(__dirname, '../../public'),
+  path.resolve(process.cwd(), 'public'),
+  path.resolve(process.cwd(), '../public'),
   path.resolve(__dirname, '../../build/web'),
   path.resolve(__dirname, '../build/web'),
   path.resolve(__dirname, '../../../build/web'),
