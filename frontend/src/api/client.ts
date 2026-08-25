@@ -127,3 +127,22 @@ export const adminApi = {
     return res.data;
   },
 };
+
+export const academicsApi = {
+  getSubjects: async (): Promise<any[]> => {
+    try {
+      const res = await api.get('/academics/subjects');
+      return res.data.data || [];
+    } catch {
+      return [];
+    }
+  },
+  getAssessments: async (): Promise<any[]> => {
+    try {
+      const res = await api.get('/academics/assessments');
+      return res.data.data || [];
+    } catch {
+      return [];
+    }
+  },
+};

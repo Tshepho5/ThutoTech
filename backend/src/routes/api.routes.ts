@@ -87,6 +87,10 @@ apiRouter.post('/learner/submissions', authenticateToken, requireRole([UserRole.
 // --- PARENT PORTAL ---
 apiRouter.get('/parent/children', authenticateToken, requireRole([UserRole.PARENT]), AcademicsController.getParentChildren);
 
+// --- ACADEMICS & CURRICULUM ---
+apiRouter.get('/academics/subjects', AcademicsController.getSubjects);
+apiRouter.get('/academics/assessments', AcademicsController.getAssessmentsWithMarks);
+
 // --- TEACHER PORTAL ---
 apiRouter.post('/teacher/assignments', authenticateToken, requireRole([UserRole.TEACHER, UserRole.ADMIN]), AcademicsController.createAssignment);
 apiRouter.post('/teacher/submissions/grade', authenticateToken, requireRole([UserRole.TEACHER, UserRole.ADMIN]), AcademicsController.gradeSubmission);

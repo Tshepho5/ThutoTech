@@ -24,6 +24,9 @@
     "prisma": "^5.22.0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@prisma/client": "^5.22.0"
   }
 }

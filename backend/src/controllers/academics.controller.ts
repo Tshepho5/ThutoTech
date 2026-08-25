@@ -271,4 +271,37 @@ export class AcademicsController {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  // --- SUBJECTS & ASSESSMENT LEDGER ---
+  static async getSubjects(req: any, res: Response) {
+    try {
+      const subjects = await prisma.subject.findMany({
+        include: { assignments: true },
+        orderBy: { name: 'asc' },
+      });
+      return res.json({ success: true, data: subjects });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  static async getAssessmentsWithMarks(req: any, res: Response) {
+    try {
+      const assignments = await prisma.assignment.findMany({
+        include: {
+          subject: true,
+          class: true,
+          submissions: {
+            include: {
+              learner: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.json({ success: true, data: assignments });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
