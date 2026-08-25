@@ -109,6 +109,8 @@ export class AdmissionsController {
         learnerName: updated.learnerName,
         learnerSurname: updated.learnerSurname,
         grade: updated.gradeApplyingFor,
+        homeLanguage: updated.homeLanguage || 'English',
+        stream: updated.stream || undefined,
         applicationNumber: updated.applicationNumber,
         registrationToken: updated.registrationToken,
       });
