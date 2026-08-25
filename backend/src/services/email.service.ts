@@ -7,19 +7,26 @@ export class EmailService {
     if (this.transporter) return this.transporter;
 
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      // Use configured production/dev SMTP (e.g. Gmail, Mailtrap, SendGrid, Amazon SES)
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: Number(process.env.SMTP_PORT) === 465,
-        connectionTimeout: 4000, // 4s timeout for restricted network firewalls
-        greetingTimeout: 4000,
-        socketTimeout: 5000,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
+      const isGmail = (process.env.SMTP_HOST || '').includes('gmail') || (process.env.SMTP_USER || '').includes('gmail');
+      
+      this.transporter = isGmail
+        ? nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+          })
+        : nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: Number(process.env.SMTP_PORT) || 587,
+            secure: Number(process.env.SMTP_PORT) === 465,
+            connectionTimeout: 5000,
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+          });
     } else {
       // Fallback: Create instant test SMTP inbox via Ethereal for zero-friction testing
       console.log('ℹ️ [EmailService] Generating instant test SMTP account via Ethereal...');
