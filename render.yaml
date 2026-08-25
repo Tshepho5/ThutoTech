@@ -34,6 +34,19 @@ services:
       - key: SMTP_FROM
         value: thutotech.admin@gmail.com
 
+  # 2. Frontend Flutter Web Static Site
+  - type: web
+    name: thutotech-web-app
+    runtime: static
+    plan: free
+    region: frankfurt
+    buildCommand: bash render-build-web.sh
+    staticPublishPath: build/web
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
 databases:
   # 2. Managed PostgreSQL Database
   - name: thutotech-postgres
