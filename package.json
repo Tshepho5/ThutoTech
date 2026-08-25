@@ -5,7 +5,9 @@
   "description": "ThutoTech Digital School Ecosystem",
   "scripts": {
     "dev": "npm --prefix backend run dev",
-    "build": "npm --prefix backend run build",
+    "build": "npm --prefix backend install && npm --prefix backend run prisma:generate && npm --prefix backend run build",
+    "start": "npm --prefix backend run start",
+    "backend:install": "npm --prefix backend install",
     "backend:dev": "npm --prefix backend run dev",
     "backend:build": "npm --prefix backend run build",
     "backend:start": "npm --prefix backend run start",
