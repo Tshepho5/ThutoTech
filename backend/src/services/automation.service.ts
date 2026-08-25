@@ -1,116 +1,65 @@
-import { prisma } from '../config/database';
-import { NotificationCategory, AttendanceStatus, SubmissionStatus } from '@prisma/client';
+import { query } from '../config/database';
+import { NotificationCategory, AttendanceStatus, SubmissionStatus } from '../types/enums';
+import { v4 as uuidv4 } from 'uuid';
 
 export class AutomationService {
   /**
    * Recalculates learner average, subject statistics, and evaluates achievement rules.
    */
   static async onSubmissionGraded(submissionId: string, actorUserId: string): Promise<void> {
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-      include: {
-        learner: {
-          include: {
-            user: true,
-            parents: {
-              include: { parent: { include: { user: true } } },
-            },
-          },
-        },
-        assignment: {
-          include: { subject: true, class: true },
-        },
-      },
-    });
+    try {
+      const subRes = await query(`
+        SELECT sub.*, l.id as "lId", l."userId" as "learnerUserId", l."fullName", l."surname",
+               a.title as "assignmentTitle", s.name as "subjectName"
+        FROM "submissions" sub
+        JOIN "learners" l ON sub."learnerId" = l.id
+        JOIN "assignments" a ON sub."assignmentId" = a.id
+        JOIN "subjects" s ON a."subjectId" = s.id
+        WHERE sub.id = $1
+      `, [submissionId]);
 
-    if (!submission || submission.mark === null) return;
+      if (subRes.rows.length === 0 || subRes.rows[0].mark === null) return;
+      const sub = subRes.rows[0];
 
-    const { learner, assignment, mark } = submission;
+      // 1. Recalculate learner overall performance average
+      const avgRes = await query(`
+        SELECT AVG("mark") as "avgMark"
+        FROM "submissions"
+        WHERE "learnerId" = $1 AND "status" = $2 AND "mark" IS NOT NULL
+      `, [sub.lId, SubmissionStatus.MARKED]);
 
-    // 1. Recalculate learner overall performance average
-    const markedSubmissions = await prisma.submission.findMany({
-      where: {
-        learnerId: learner.id,
-        status: SubmissionStatus.MARKED,
-        mark: { not: null },
-      },
-    });
+      const newAverage = avgRes.rows[0]?.avgMark ? Number(Number(avgRes.rows[0].avgMark).toFixed(1)) : 0;
+      await query(`UPDATE "learners" SET "overallAverage" = $1 WHERE id = $2`, [newAverage, sub.lId]);
 
-    if (markedSubmissions.length > 0) {
-      const totalMarks = markedSubmissions.reduce((sum, s) => sum + (s.mark ?? 0), 0);
-      const newAverage = Number((totalMarks / markedSubmissions.length).toFixed(1));
+      // 2. Notify Learner
+      await query(`
+        INSERT INTO "app_notifications" ("id", "recipientUserId", "title", "body", "category")
+        VALUES ($1, $2, $3, $4, $5)
+      `, [uuidv4(), sub.learnerUserId, `Assignment Graded: ${sub.subjectName}`, `You scored ${sub.mark}% on "${sub.assignmentTitle}".`, NotificationCategory.ACADEMIC]);
 
-      await prisma.learner.update({
-        where: { id: learner.id },
-        data: { overallAverage: newAverage },
-      });
-    }
+      // 3. Notify Parents
+      const parentsRes = await query(`
+        SELECT p."userId"
+        FROM "parent_learner_relationships" plr
+        JOIN "parents" p ON plr."parentId" = p.id
+        WHERE plr."learnerId" = $1 AND plr."status" = 'ACTIVE'
+      `, [sub.lId]);
 
-    // 2. Evaluate rule-based achievement (e.g., Distinction if mark >= 85%)
-    if (mark >= 85) {
-      const existingAch = await prisma.achievement.findFirst({
-        where: {
-          learnerId: learner.id,
-          title: `Distinction in ${assignment.subject.name}`,
-        },
-      });
-
-      if (!existingAch) {
-        await prisma.achievement.create({
-          data: {
-            learnerId: learner.id,
-            title: `Distinction in ${assignment.subject.name}`,
-            description: `Achieved ${mark}% on "${assignment.title}"`,
-            iconName: 'emoji_events',
-            category: 'ACADEMIC',
-          },
-        });
-
-        // Notify learner about achievement
-        await prisma.appNotification.create({
-          data: {
-            recipientUserId: learner.userId,
-            title: 'New Achievement Earned!',
-            body: `Congratulations! You received a Distinction badge in ${assignment.subject.name}.`,
-            category: NotificationCategory.ACHIEVEMENT,
-          },
-        });
+      for (const p of parentsRes.rows) {
+        await query(`
+          INSERT INTO "app_notifications" ("id", "recipientUserId", "title", "body", "category")
+          VALUES ($1, $2, $3, $4, $5)
+        `, [uuidv4(), p.userId, `Result Update: ${sub.fullName}`, `${sub.fullName} scored ${sub.mark}% for ${sub.subjectName} (${sub.assignmentTitle}).`, NotificationCategory.ACADEMIC]);
       }
+
+      // 4. Audit Log
+      await query(`
+        INSERT INTO "audit_logs" ("id", "userId", "userName", "role", "action", "entity", "details")
+        VALUES ($1, $2, 'Teacher', 'TEACHER', 'MARK_ENTERED', $3, $4)
+      `, [uuidv4(), actorUserId, `Submission: ${sub.assignmentTitle}`, `Entered ${sub.mark}% for ${sub.fullName} ${sub.surname}. Recalculated learner average to ${newAverage}%.`]);
+    } catch (err) {
+      console.warn('Automation error on submission grading:', err);
     }
-
-    // 3. Notify Learner
-    await prisma.appNotification.create({
-      data: {
-        recipientUserId: learner.userId,
-        title: `Assignment Graded: ${assignment.subject.name}`,
-        body: `You scored ${mark}% on "${assignment.title}".`,
-        category: NotificationCategory.ACADEMIC,
-      },
-    });
-
-    // 4. Notify Authorised Parents
-    for (const rel of learner.parents) {
-      await prisma.appNotification.create({
-        data: {
-          recipientUserId: rel.parent.userId,
-          title: `Result Update: ${learner.fullName}`,
-          body: `${learner.fullName} scored ${mark}% for ${assignment.subject.name} (${assignment.title}).`,
-          category: NotificationCategory.ACADEMIC,
-        },
-      });
-    }
-
-    // 5. Audit Log
-    await prisma.auditLog.create({
-      data: {
-        userId: actorUserId,
-        userName: 'Teacher',
-        role: 'TEACHER',
-        action: 'MARK_ENTERED',
-        entity: `Submission: ${assignment.title}`,
-        details: `Entered ${mark}% for ${learner.fullName} ${learner.surname}. Recalculated learner performance.`,
-      },
-    });
   }
 
   /**
@@ -122,59 +71,45 @@ export class AutomationService {
     actorUserId: string;
   }): Promise<void> {
     const { classId, records, actorUserId } = params;
-    const now = new Date();
 
     for (const item of records) {
-      await prisma.attendanceRecord.create({
-        data: {
-          date: now,
-          classId,
-          learnerId: item.learnerId,
-          status: item.status,
-          reason: item.reason,
-        },
-      });
+      await query(`
+        INSERT INTO "attendance_records" ("id", "date", "classId", "learnerId", "status", "reason")
+        VALUES ($1, CURRENT_DATE, $2, $3, $4, $5)
+      `, [uuidv4(), classId, item.learnerId, item.status, item.reason || null]);
 
       // Recalculate attendance percentage
-      const totalCount = await prisma.attendanceRecord.count({ where: { learnerId: item.learnerId } });
-      const presentCount = await prisma.attendanceRecord.count({
-        where: { learnerId: item.learnerId, status: AttendanceStatus.PRESENT },
-      });
+      const totalRes = await query(`SELECT COUNT(*)::int as cnt FROM "attendance_records" WHERE "learnerId" = $1`, [item.learnerId]);
+      const presRes = await query(`SELECT COUNT(*)::int as cnt FROM "attendance_records" WHERE "learnerId" = $1 AND "status" = $2`, [item.learnerId, AttendanceStatus.PRESENT]);
 
-      const percentage = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(1)) : 100.0;
+      const totalCount = totalRes.rows[0]?.cnt || 1;
+      const presentCount = presRes.rows[0]?.cnt || 1;
+      const percentage = Number(((presentCount / totalCount) * 100).toFixed(1));
 
-      const updatedLearner = await prisma.learner.update({
-        where: { id: item.learnerId },
-        data: { attendancePercentage: percentage },
-        include: {
-          parents: { include: { parent: true } },
-        },
-      });
+      await query(`UPDATE "learners" SET "attendancePercentage" = $1 WHERE id = $2`, [percentage, item.learnerId]);
 
-      // AUTOMATION: If marked Absent, notify parent immediately
+      // Alert if Absent
       if (item.status === AttendanceStatus.ABSENT) {
-        for (const rel of updatedLearner.parents) {
-          await prisma.appNotification.create({
-            data: {
-              recipientUserId: rel.parent.userId,
-              title: 'Attendance Alert: Absence Recorded',
-              body: `${updatedLearner.fullName} was marked ABSENT today. Please contact the school if unexcused.`,
-              category: NotificationCategory.ATTENDANCE,
-            },
-          });
+        const parentsRes = await query(`
+          SELECT p."userId", l."fullName"
+          FROM "parent_learner_relationships" plr
+          JOIN "parents" p ON plr."parentId" = p.id
+          JOIN "learners" l ON plr."learnerId" = l.id
+          WHERE plr."learnerId" = $1 AND plr."status" = 'ACTIVE'
+        `, [item.learnerId]);
+
+        for (const p of parentsRes.rows) {
+          await query(`
+            INSERT INTO "app_notifications" ("id", "recipientUserId", "title", "body", "category")
+            VALUES ($1, $2, 'Attendance Alert: Absence Recorded', $3, $4)
+          `, [uuidv4(), p.userId, `${p.fullName} was marked ABSENT today. Please contact the school if unexcused.`, NotificationCategory.ATTENDANCE]);
         }
       }
     }
 
-    await prisma.auditLog.create({
-      data: {
-        userId: actorUserId,
-        userName: 'Teacher',
-        role: 'TEACHER',
-        action: 'ATTENDANCE_RECORDED',
-        entity: `Class: ${classId}`,
-        details: `Logged attendance for ${records.length} learners with automatic absence sentinels.`,
-      },
-    });
+    await query(`
+      INSERT INTO "audit_logs" ("id", "userId", "userName", "role", "action", "entity", "details")
+      VALUES ($1, $2, 'Teacher', 'TEACHER', 'ATTENDANCE_RECORDED', $3, $4)
+    `, [uuidv4(), actorUserId, `Class: ${classId}`, `Logged attendance for ${records.length} learners.`]);
   }
 }

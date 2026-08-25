@@ -1,78 +1,81 @@
-import { PrismaClient } from '@prisma/client';
-
-export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
-});
-
+import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// PostgreSQL Connection Pool configuration
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' || (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com'))
+    ? { rejectUnauthorized: false }
+    : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+export const query = (text: string, params?: any[]) => pool.query(text, params);
 
 export async function connectDatabase() {
   try {
-    await prisma.$connect();
-    console.log('✅ Connected successfully to PostgreSQL Database.');
+    const client = await pool.connect();
+    console.log('✅ Connected successfully to PostgreSQL Database (Native PG Driver).');
+    client.release();
 
-    // Execute schema.sql as the single source of truth
-    try {
-      const candidates = [
-        path.resolve(__dirname, '../../schema.sql'),
-        path.resolve(__dirname, '../schema.sql'),
-        path.resolve(process.cwd(), 'schema.sql'),
-        path.resolve(process.cwd(), 'backend/schema.sql'),
-      ];
-      let sqlPath: string | null = null;
-      for (const p of candidates) {
-        if (fs.existsSync(p)) {
-          sqlPath = p;
-          break;
-        }
+    // Execute backend/schema.sql as the single source of truth
+    const candidates = [
+      path.resolve(__dirname, '../../schema.sql'),
+      path.resolve(__dirname, '../schema.sql'),
+      path.resolve(process.cwd(), 'schema.sql'),
+      path.resolve(process.cwd(), 'backend/schema.sql'),
+    ];
+
+    let sqlPath: string | null = null;
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        sqlPath = p;
+        break;
       }
-
-      if (sqlPath) {
-        const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
-        const statements = sqlContent
-          .split(/;\s*$/m)
-          .map(s => s.trim())
-          .filter(s => s.length > 0 && !s.startsWith('--'));
-
-        for (const stmt of statements) {
-          try {
-            await prisma.$executeRawUnsafe(stmt);
-          } catch (e: any) {
-            // Ignore minor duplicate object / already exists errors
-          }
-        }
-        console.log(`✅ schema.sql executed successfully from: ${sqlPath}`);
-      }
-
-      // Ensure Super Admin Lebogang Makola exists with verified bcrypt hash of `#Admin#$5$`
-      const adminPassHash = await bcrypt.hash('#Admin#$5$', 10);
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
-        VALUES (
-          'usr_admin_lebogang',
-          'thutotech.admin@gmail.com',
-          '${adminPassHash}',
-          'Lebogang',
-          'Makola',
-          'ADMIN',
-          '0820605107',
-          'ACTIVE'
-        )
-        ON CONFLICT ("email") DO UPDATE SET
-          "passwordHash" = '${adminPassHash}',
-          "name" = 'Lebogang',
-          "surname" = 'Makola',
-          "role" = 'ADMIN',
-          "status" = 'ACTIVE';
-      `);
-
-      console.log('✅ Super Admin (Lebogang Makola: thutotech.admin@gmail.com) verified.');
-    } catch (sqlErr) {
-      console.warn('Note: Schema sync completed with notices:', sqlErr);
     }
+
+    if (sqlPath) {
+      console.log(`📄 Initializing PostgreSQL schema from: ${sqlPath}`);
+      const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
+      
+      // Execute the entire schema.sql file
+      await pool.query(sqlContent);
+      console.log('✅ PostgreSQL Schema synchronized from schema.sql successfully.');
+    } else {
+      console.warn('⚠️ schema.sql not found in search paths.');
+    }
+
+    // Guarantee Super Admin Lebogang Makola seed
+    const adminPassHash = await bcrypt.hash('#Admin#$5$', 10);
+    await pool.query(`
+      INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
+      VALUES (
+        'usr_admin_lebogang',
+        'thutotech.admin@gmail.com',
+        $1,
+        'Lebogang',
+        'Makola',
+        'ADMIN',
+        '0820605107',
+        'ACTIVE'
+      )
+      ON CONFLICT ("email") DO UPDATE SET
+        "passwordHash" = $1,
+        "name" = 'Lebogang',
+        "surname" = 'Makola',
+        "role" = 'ADMIN',
+        "status" = 'ACTIVE';
+    `, [adminPassHash]);
+
+    console.log('✅ Super Administrator (Lebogang Makola: thutotech.admin@gmail.com) verified in PostgreSQL.');
   } catch (error) {
-    console.error('❌ Failed to connect to PostgreSQL Database:', error);
+    console.error('❌ PostgreSQL Connection / Schema Sync Error:', error);
   }
 }

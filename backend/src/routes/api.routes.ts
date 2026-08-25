@@ -5,8 +5,8 @@ import { AcademicsController } from '../controllers/academics.controller';
 import { AdminController } from '../controllers/admin.controller';
 import { EmailController } from '../controllers/email.controller';
 import { validateAdmissionApplication, validateRegistration } from '../middleware/validation.middleware';
-import { authenticateToken, requireRole, verifyParentChildAccess } from '../middleware/auth.middleware';
-import { UserRole } from '@prisma/client';
+import { authenticateToken, requireRole } from '../middleware/auth.middleware';
+import { UserRole } from '../types/enums';
 
 export const apiRouter = Router();
 

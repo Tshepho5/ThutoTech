@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/database';
-import { ApplicationStatus, UserRole, UserStatus } from '@prisma/client';
+import { query } from '../config/database';
+import { ApplicationStatus, UserRole, UserStatus } from '../types/enums';
 import bcrypt from 'bcryptjs';
 import { EmailService } from '../services/email.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,8 +26,7 @@ export class AdmissionsController {
         secondaryParentGender,
         secondaryParentDob,
         secondaryParentDocumentUrl,
-        learners, // Array of learners: [{ learnerName, learnerSurname, learnerIdNumber, gradeApplyingFor, homeLanguage, stream, previousSchool, documentName, documentUrl, documentVerified }]
-        // Single learner backwards compatibility
+        learners,
         learnerName,
         learnerSurname,
         learnerIdNumber,
@@ -37,11 +36,11 @@ export class AdmissionsController {
         previousSchool,
       } = req.body;
 
+      const appId = uuidv4();
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const applicationNumber = `TT-2026-${randomSuffix}`;
       const registrationToken = `REG-TT-${Math.floor(10000 + Math.random() * 90000)}`;
 
-      // Parse learners array or fallback to single learner
       const rawLearners: any[] = Array.isArray(learners) && learners.length > 0
         ? learners
         : [{
@@ -56,56 +55,84 @@ export class AdmissionsController {
             documentVerified: true,
           }];
 
-      const application = await prisma.admissionApplication.create({
-        data: {
-          applicationNumber,
-          primaryParentName: primaryParentName.trim(),
-          primaryParentSurname: primaryParentSurname.trim(),
-          primaryParentPhone: primaryParentPhone.trim(),
-          primaryParentEmail: primaryParentEmail.trim(),
-          primaryParentIdNumber: primaryParentIdNumber.trim(),
-          primaryParentGender: primaryParentGender || null,
-          primaryParentDob: primaryParentDob ? new Date(primaryParentDob) : null,
-          primaryParentDocumentUrl: primaryParentDocumentUrl || null,
-          hasSecondaryParent: Boolean(hasSecondaryParent),
-          secondaryParentName: secondaryParentName ? secondaryParentName.trim() : null,
-          secondaryParentSurname: secondaryParentSurname ? secondaryParentSurname.trim() : null,
-          secondaryParentPhone: secondaryParentPhone ? secondaryParentPhone.trim() : null,
-          secondaryParentEmail: secondaryParentEmail ? secondaryParentEmail.trim() : null,
-          secondaryParentIdNumber: secondaryParentIdNumber ? secondaryParentIdNumber.trim() : null,
-          secondaryParentGender: secondaryParentGender || null,
-          secondaryParentDob: secondaryParentDob ? new Date(secondaryParentDob) : null,
-          secondaryParentDocumentUrl: secondaryParentDocumentUrl || null,
-          status: ApplicationStatus.SUBMITTED,
-          registrationToken,
-          learners: {
-            create: rawLearners.map((l: any) => ({
-              learnerName: (l.learnerName || '').trim(),
-              learnerSurname: (l.learnerSurname || '').trim(),
-              learnerIdNumber: (l.learnerIdNumber || '').trim(),
-              learnerGender: l.learnerGender || null,
-              learnerDob: l.learnerDob ? new Date(l.learnerDob) : null,
-              learnerAge: l.learnerAge ? Number(l.learnerAge) : null,
-              gradeApplyingFor: (l.gradeApplyingFor || 'Grade 8').trim(),
-              homeLanguage: (l.homeLanguage || 'English').trim(),
-              firstAdditionalLanguage: (l.firstAdditionalLanguage || 'Afrikaans').trim(),
-              stream: l.stream ? l.stream.trim() : null,
-              previousSchool: (l.previousSchool || 'Not Specified').trim(),
-              documentName: l.documentName || null,
-              documentUrl: l.documentUrl || null,
-              documentVerified: Boolean(l.documentVerified),
-            })),
-          },
-        },
-        include: {
-          learners: true,
-        },
-      });
+      // Insert into admission_applications
+      await query(`
+        INSERT INTO "admission_applications" (
+          "id", "applicationNumber", "primaryParentName", "primaryParentSurname",
+          "primaryParentPhone", "primaryParentEmail", "primaryParentIdNumber", "primaryParentGender",
+          "primaryParentDob", "primaryParentDocumentUrl", "hasSecondaryParent", "secondaryParentName",
+          "secondaryParentSurname", "secondaryParentPhone", "secondaryParentEmail", "secondaryParentIdNumber",
+          "secondaryParentGender", "secondaryParentDob", "secondaryParentDocumentUrl", "status", "registrationToken"
+        )
+        VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+        )
+      `, [
+        appId,
+        applicationNumber,
+        primaryParentName.trim(),
+        primaryParentSurname.trim(),
+        primaryParentPhone.trim(),
+        primaryParentEmail.trim(),
+        primaryParentIdNumber ? primaryParentIdNumber.trim() : null,
+        primaryParentGender || null,
+        primaryParentDob ? new Date(primaryParentDob) : null,
+        primaryParentDocumentUrl || null,
+        Boolean(hasSecondaryParent),
+        secondaryParentName ? secondaryParentName.trim() : null,
+        secondaryParentSurname ? secondaryParentSurname.trim() : null,
+        secondaryParentPhone ? secondaryParentPhone.trim() : null,
+        secondaryParentEmail ? secondaryParentEmail.trim() : null,
+        secondaryParentIdNumber ? secondaryParentIdNumber.trim() : null,
+        secondaryParentGender || null,
+        secondaryParentDob ? new Date(secondaryParentDob) : null,
+        secondaryParentDocumentUrl || null,
+        ApplicationStatus.SUBMITTED,
+        registrationToken,
+      ]);
+
+      // Insert learners into application_learners
+      for (const l of rawLearners) {
+        await query(`
+          INSERT INTO "application_learners" (
+            "id", "applicationId", "learnerName", "learnerSurname", "learnerIdNumber",
+            "learnerGender", "learnerDob", "learnerAge", "gradeApplyingFor", "homeLanguage",
+            "firstAdditionalLanguage", "stream", "previousSchool", "documentName", "documentUrl", "documentVerified"
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+          )
+        `, [
+          uuidv4(),
+          appId,
+          (l.learnerName || '').trim(),
+          (l.learnerSurname || '').trim(),
+          (l.learnerIdNumber || '').trim(),
+          l.learnerGender || null,
+          l.learnerDob ? new Date(l.learnerDob) : null,
+          l.learnerAge ? Number(l.learnerAge) : null,
+          (l.gradeApplyingFor || 'Grade 8').trim(),
+          (l.homeLanguage || 'English').trim(),
+          (l.firstAdditionalLanguage || 'Afrikaans').trim(),
+          l.stream ? l.stream.trim() : null,
+          (l.previousSchool || 'Not Specified').trim(),
+          l.documentName || null,
+          l.documentUrl || null,
+          Boolean(l.documentVerified),
+        ]);
+      }
 
       return res.status(201).json({
         success: true,
         message: `Admission application submitted for ${rawLearners.length} learner(s).`,
-        data: application,
+        data: {
+          id: appId,
+          applicationNumber,
+          registrationToken,
+          primaryParentName,
+          primaryParentSurname,
+          primaryParentEmail,
+        },
       });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
@@ -115,18 +142,25 @@ export class AdmissionsController {
   static async getApplications(req: Request, res: Response) {
     try {
       const { status } = req.query;
-      const where: any = {};
+      let sql = `SELECT * FROM "admission_applications"`;
+      const params: any[] = [];
+
       if (status && typeof status === 'string') {
-        where.status = status as ApplicationStatus;
+        sql += ` WHERE "status" = $1`;
+        params.push(status);
+      }
+      sql += ` ORDER BY "submittedAt" DESC`;
+
+      const appRes = await query(sql, params);
+      const applications = appRes.rows;
+
+      // Fetch learners for each application
+      for (const app of applications) {
+        const learnersRes = await query(`SELECT * FROM "application_learners" WHERE "applicationId" = $1`, [app.id]);
+        app.learners = learnersRes.rows;
       }
 
-      const applications = await prisma.admissionApplication.findMany({
-        where,
-        include: { learners: true },
-        orderBy: { submittedAt: 'desc' },
-      });
-
-      return res.json({ success: true, data: applications });
+      return res.json({ success: true, data: applications, applications });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
     }
@@ -137,44 +171,42 @@ export class AdmissionsController {
       const { id } = req.params;
       const { notes } = req.body;
 
-      const app = await prisma.admissionApplication.findUnique({
-        where: { id },
-        include: { learners: true },
-      });
-      if (!app) {
+      const appRes = await query(`SELECT * FROM "admission_applications" WHERE id = $1 LIMIT 1`, [id]);
+      if (appRes.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Application not found.' });
       }
 
-      const updated = await prisma.admissionApplication.update({
-        where: { id },
-        data: {
-          status: ApplicationStatus.APPROVED,
-          reviewedAt: new Date(),
-          reviewerNotes: notes || 'Approved by School Principal.',
-        },
-        include: { learners: true },
-      });
+      const app = appRes.rows[0];
 
-      const firstLearner = updated.learners[0] || {};
+      // Update application status
+      await query(`
+        UPDATE "admission_applications"
+        SET "status" = $1, "reviewedAt" = CURRENT_TIMESTAMP, "reviewerNotes" = $2
+        WHERE id = $3
+      `, [ApplicationStatus.APPROVED, notes || 'Approved by Administrator.', id]);
+
+      const learnersRes = await query(`SELECT * FROM "application_learners" WHERE "applicationId" = $1`, [id]);
+      const learners = learnersRes.rows;
+      const firstLearner = learners[0] || {};
 
       // Dispatch automated admission approval email
       await EmailService.sendAdmissionApprovalEmail({
-        recipientEmail: updated.primaryParentEmail,
-        parentName: updated.primaryParentName,
-        parentSurname: updated.primaryParentSurname,
-        learnerName: firstLearner.learnerName || updated.primaryParentSurname + ' Child',
-        learnerSurname: firstLearner.learnerSurname || updated.primaryParentSurname,
+        recipientEmail: app.primaryParentEmail,
+        parentName: app.primaryParentName,
+        parentSurname: app.primaryParentSurname,
+        learnerName: firstLearner.learnerName || app.primaryParentSurname + ' Child',
+        learnerSurname: firstLearner.learnerSurname || app.primaryParentSurname,
         grade: firstLearner.gradeApplyingFor || 'Grade 10',
         homeLanguage: firstLearner.homeLanguage || 'English',
         stream: firstLearner.stream || undefined,
-        applicationNumber: updated.applicationNumber,
-        registrationToken: updated.registrationToken,
+        applicationNumber: app.applicationNumber,
+        registrationToken: app.registrationToken,
       });
 
       return res.json({
         success: true,
         message: 'Admission application approved and registration email sent to parent.',
-        data: updated,
+        data: { ...app, status: ApplicationStatus.APPROVED, learners },
       });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
@@ -190,59 +222,66 @@ export class AdmissionsController {
         parentEmail,
         parentPassword,
         learners,
-        // Single learner fallback
         learnerName,
         learnerSurname,
         learnerIdNumber,
       } = req.body;
 
-      const app = await prisma.admissionApplication.findUnique({
-        where: { registrationToken },
-        include: { learners: true },
-      });
-
-      if (!app) {
+      const appRes = await query(`SELECT * FROM "admission_applications" WHERE "registrationToken" = $1 LIMIT 1`, [registrationToken]);
+      if (appRes.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Invalid or expired registration token.' });
       }
 
-      if (app.status !== ApplicationStatus.APPROVED) {
-        return res.status(400).json({ success: false, message: 'Application has not been approved yet.' });
-      }
+      const app = appRes.rows[0];
+      const learnersRes = await query(`SELECT * FROM "application_learners" WHERE "applicationId" = $1`, [app.id]);
+      app.learners = learnersRes.rows;
 
-      // Check if parent user already exists
-      let parentUser = await prisma.user.findUnique({ where: { email: parentEmail } });
-      let parentEntity: any = null;
+      // Check or create parent user
+      let parentUserRes = await query(`SELECT * FROM "users" WHERE LOWER(email) = LOWER($1) LIMIT 1`, [parentEmail]);
+      let parentUserId = '';
+      let parentEntityId = '';
 
-      if (!parentUser) {
-        const passwordHash = await bcrypt.hash(parentPassword, 10);
-        parentUser = await prisma.user.create({
-          data: {
-            email: parentEmail.toLowerCase().trim(),
-            passwordHash,
-            name: parentName.trim(),
-            surname: parentSurname.trim(),
-            role: UserRole.PARENT,
-            phone: app.primaryParentPhone,
-            status: UserStatus.ACTIVE,
-          },
-        });
+      if (parentUserRes.rows.length === 0) {
+        parentUserId = uuidv4();
+        const passwordHash = await bcrypt.hash(parentPassword || 'Parent@2026!', 10);
+        await query(`
+          INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          parentUserId,
+          parentEmail.toLowerCase().trim(),
+          passwordHash,
+          parentName.trim(),
+          parentSurname.trim(),
+          UserRole.PARENT,
+          app.primaryParentPhone,
+          UserStatus.ACTIVE,
+        ]);
 
-        parentEntity = await prisma.parent.create({
-          data: {
-            userId: parentUser.id,
-            fullName: parentName.trim(),
-            surname: parentSurname.trim(),
-            phone: app.primaryParentPhone,
-            email: parentEmail.toLowerCase().trim(),
-            hasSecondaryParent: app.hasSecondaryParent,
-            secondaryParentFullName: app.secondaryParentName,
-            secondaryParentSurname: app.secondaryParentSurname,
-            secondaryParentPhone: app.secondaryParentPhone,
-            secondaryParentEmail: app.secondaryParentEmail,
-          },
-        });
+        parentEntityId = uuidv4();
+        await query(`
+          INSERT INTO "parents" (
+            "id", "userId", "fullName", "surname", "phone", "email", "hasSecondaryParent",
+            "secondaryParentFullName", "secondaryParentSurname", "secondaryParentPhone", "secondaryParentEmail"
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, [
+          parentEntityId,
+          parentUserId,
+          parentName.trim(),
+          parentSurname.trim(),
+          app.primaryParentPhone,
+          parentEmail.toLowerCase().trim(),
+          app.hasSecondaryParent,
+          app.secondaryParentName,
+          app.secondaryParentSurname,
+          app.secondaryParentPhone,
+          app.secondaryParentEmail,
+        ]);
       } else {
-        parentEntity = await prisma.parent.findUnique({ where: { userId: parentUser.id } });
+        parentUserId = parentUserRes.rows[0].id;
+        const parentEntRes = await query(`SELECT id FROM "parents" WHERE "userId" = $1 LIMIT 1`, [parentUserId]);
+        parentEntityId = parentEntRes.rows.length > 0 ? parentEntRes.rows[0].id : uuidv4();
       }
 
       const learnersToRegister: any[] = Array.isArray(learners) && learners.length > 0
@@ -254,7 +293,6 @@ export class AdmissionsController {
           }];
 
       const createdLearners: any[] = [];
-      let seq = 1;
 
       for (const rawL of learnersToRegister) {
         const lName = (rawL.learnerName || '').trim();
@@ -265,7 +303,6 @@ export class AdmissionsController {
         const learnerNumber = `${year}${String(Math.floor(1000 + Math.random() * 9000)).padStart(4, '0')}`;
         const learnerEmail = `${learnerNumber}@thutotech.co.za`;
 
-        // Systematic password rule: Thuto@ + id[0] + id[3] + id[6] + id[9] + id[12]
         let generatedPassword = 'Thuto@2026!';
         if (lIdNum.length >= 13) {
           let extracted = '';
@@ -276,41 +313,44 @@ export class AdmissionsController {
         }
 
         const learnerPassHash = await bcrypt.hash(generatedPassword, 10);
-        const learnerUser = await prisma.user.create({
-          data: {
-            email: learnerEmail,
-            passwordHash: learnerPassHash,
-            name: lName,
-            surname: lSurname,
-            role: UserRole.LEARNER,
-            status: UserStatus.ACTIVE,
-          },
-        });
+        const learnerUserId = uuidv4();
 
-        const appLearner = app.learners.find(al => al.learnerIdNumber === lIdNum) || app.learners[0];
+        await query(`
+          INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "status")
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [learnerUserId, learnerEmail, learnerPassHash, lName, lSurname, UserRole.LEARNER, UserStatus.ACTIVE]);
 
-        const learnerEntity = await prisma.learner.create({
-          data: {
-            userId: learnerUser.id,
-            learnerNumber,
-            idNumber: lIdNum,
-            fullName: lName,
-            surname: lSurname,
-            grade: appLearner?.gradeApplyingFor || 'Grade 8',
-            className: `${appLearner?.gradeApplyingFor || 'Grade 8'}A`,
-            homeLanguage: appLearner?.homeLanguage || 'English',
-            firstAdditionalLanguage: appLearner?.firstAdditionalLanguage || 'Afrikaans',
-            stream: appLearner?.stream || null,
-            schoolId: 'sch_thutotech',
-            parents: {
-              create: {
-                parentId: parentEntity.id,
-              },
-            },
-          },
-        });
+        const appLearner = app.learners.find((al: any) => al.learnerIdNumber === lIdNum) || app.learners[0];
+        const learnerEntityId = uuidv4();
 
-        // Send registration welcome email with generated credentials
+        await query(`
+          INSERT INTO "learners" (
+            "id", "userId", "learnerNumber", "idNumber", "fullName", "surname",
+            "grade", "className", "homeLanguage", "firstAdditionalLanguage", "stream", "schoolId"
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'sch_thutotech')
+        `, [
+          learnerEntityId,
+          learnerUserId,
+          learnerNumber,
+          lIdNum,
+          lName,
+          lSurname,
+          appLearner?.gradeApplyingFor || 'Grade 8',
+          `${appLearner?.gradeApplyingFor || 'Grade 8'}A`,
+          appLearner?.homeLanguage || 'English',
+          appLearner?.firstAdditionalLanguage || 'Afrikaans',
+          appLearner?.stream || null,
+        ]);
+
+        // Link parent-learner
+        await query(`
+          INSERT INTO "parent_learner_relationships" ("id", "parentId", "learnerId", "relationshipType", "status")
+          VALUES ($1, $2, $3, 'PARENT', 'ACTIVE')
+          ON CONFLICT ("parentId", "learnerId") DO NOTHING
+        `, [uuidv4(), parentEntityId, learnerEntityId]);
+
+        // Send registration welcome email
         await EmailService.sendRegistrationSuccessEmail({
           recipientEmail: parentEmail,
           parentName,

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../config/database';
-import { UserRole } from '@prisma/client';
+import { query } from '../config/database';
+import { UserRole } from '../types/enums';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -60,25 +60,27 @@ export async function verifyParentChildAccess(req: AuthRequest, res: Response, n
     return next();
   }
 
-  const parent = await prisma.parent.findUnique({
-    where: { userId },
-    include: { relationships: true },
-  });
+  try {
+    const parentRes = await query(`SELECT id FROM "parents" WHERE "userId" = $1 LIMIT 1`, [userId]);
+    if (parentRes.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Parent profile not found.' });
+    }
 
-  if (!parent) {
-    return res.status(403).json({ success: false, message: 'Parent profile not found.' });
+    const parentId = parentRes.rows[0].id;
+    const relRes = await query(
+      `SELECT * FROM "parent_learner_relationships" WHERE "parentId" = $1 AND "learnerId" = $2 AND "status" = 'ACTIVE'`,
+      [parentId, learnerId]
+    );
+
+    if (relRes.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: You are not authorized to view academic data for this learner.',
+      });
+    }
+
+    next();
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const hasAccess = parent.relationships.some(
-    (rel) => rel.learnerId === learnerId && rel.status === 'ACTIVE'
-  );
-
-  if (!hasAccess) {
-    return res.status(403).json({
-      success: false,
-      message: 'Access Denied: You are not authorized to view academic data for this learner.',
-    });
-  }
-
-  next();
 }

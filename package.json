@@ -5,7 +5,7 @@
   "description": "ThutoTech Digital School Ecosystem",
   "scripts": {
     "dev": "npm --prefix backend run dev",
-    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && npm --prefix backend run prisma:generate && npm --prefix backend run build",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && npm --prefix backend run build",
     "start": "npm --prefix backend run start",
     "frontend:install": "npm --prefix frontend install",
     "frontend:dev": "npm --prefix frontend run dev",
@@ -13,20 +13,12 @@
     "backend:install": "npm --prefix backend install",
     "backend:dev": "npm --prefix backend run dev",
     "backend:build": "npm --prefix backend run build",
-    "backend:start": "npm --prefix backend run start",
-    "backend:migrate": "npm --prefix backend run prisma:migrate",
-    "backend:studio": "npm --prefix backend run prisma:studio"
+    "backend:start": "npm --prefix backend run start"
   },
-  "prisma": {
-    "schema": "backend/prisma/schema.prisma"
-  },
-  "devDependencies": {
-    "prisma": "^5.22.0"
-  },
+  "devDependencies": {},
   "dependencies": {
     "@capacitor/android": "^8.5.0",
     "@capacitor/cli": "^8.5.0",
-    "@capacitor/core": "^8.5.0",
-    "@prisma/client": "^5.22.0"
+    "@capacitor/core": "^8.5.0"
   }
 }

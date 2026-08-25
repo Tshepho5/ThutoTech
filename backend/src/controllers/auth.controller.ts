@@ -1,39 +1,12 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/database';
+import { query } from '../config/database';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../types/enums';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { EmailService } from '../services/email.service';
+import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Calculates Levenshtein edit distance between two strings
- */
-function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = [];
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
-  }
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
-        );
-      }
-    }
-  }
-  return matrix[b.length][a.length];
-}
-
-// In-memory failed attempts tracker for brute-force protection
 interface LoginAttemptTracker {
   count: number;
   lockedUntil?: Date;
@@ -51,50 +24,15 @@ export class AuthController {
       }
 
       const cleanIdentifier = email.trim().toLowerCase();
+      const secret = process.env.JWT_SECRET || 'thutotech_secret';
 
-      // Super Admin (Lebogang Makola) Direct Master Verification
+      // 1. Super Admin (Lebogang Makola) Direct Master Verification
       if (cleanIdentifier === 'thutotech.admin@gmail.com' && password === '#Admin#$5$') {
-        let adminUser: any = null;
-        try {
-          adminUser = await prisma.user.findUnique({
-            where: { email: 'thutotech.admin@gmail.com' },
-          });
-        } catch (_) {}
-
-        if (!adminUser) {
-          try {
-            const hash = await bcrypt.hash('#Admin#$5$', 10);
-            adminUser = await prisma.user.create({
-              data: {
-                id: 'usr_admin_lebogang',
-                email: 'thutotech.admin@gmail.com',
-                passwordHash: hash,
-                name: 'Lebogang',
-                surname: 'Makola',
-                role: UserRole.ADMIN,
-                phone: '0820605107',
-                status: 'ACTIVE' as any,
-              },
-            });
-          } catch (_) {
-            adminUser = {
-              id: 'usr_admin_lebogang',
-              email: 'thutotech.admin@gmail.com',
-              name: 'Lebogang',
-              surname: 'Makola',
-              role: 'ADMIN',
-              phone: '0820605107',
-              status: 'ACTIVE',
-            };
-          }
-        }
-
-        const secret = process.env.JWT_SECRET || 'thutotech_secret';
         const token = jwt.sign(
           {
-            id: adminUser.id || 'usr_admin_lebogang',
+            id: 'usr_admin_lebogang',
             email: 'thutotech.admin@gmail.com',
-            role: 'ADMIN',
+            role: UserRole.ADMIN,
             name: 'Lebogang',
             surname: 'Makola',
           },
@@ -107,7 +45,7 @@ export class AuthController {
           message: 'Super Administrator authenticated successfully.',
           token,
           user: {
-            id: adminUser.id || 'usr_admin_lebogang',
+            id: 'usr_admin_lebogang',
             email: 'thutotech.admin@gmail.com',
             name: 'Lebogang',
             surname: 'Makola',
@@ -118,7 +56,7 @@ export class AuthController {
         });
       }
 
-      // 1. Check Brute-Force Lockout
+      // 2. Check Brute-Force Lockout
       const attemptInfo = loginAttemptsMap.get(cleanIdentifier);
       if (attemptInfo && attemptInfo.lockedUntil && new Date() < attemptInfo.lockedUntil) {
         const remainingSeconds = Math.ceil((attemptInfo.lockedUntil.getTime() - Date.now()) / 1000);
@@ -130,68 +68,41 @@ export class AuthController {
         });
       }
 
-      // 2. Find User by email
+      // 3. Find User by email or student/ID number using SQL
       let user: any = null;
-      try {
-        user = await prisma.user.findUnique({
-          where: { email: cleanIdentifier },
-          include: { learner: true, parent: true, teacher: true },
-        });
-      } catch (_) {
-        // Raw fallback
-        try {
-          const rawUsers: any[] = await prisma.$queryRawUnsafe(
-            `SELECT * FROM "users" WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-            cleanIdentifier
-          );
-          if (rawUsers && rawUsers.length > 0) {
-            user = rawUsers[0];
-          }
-        } catch (__) {}
-      }
-
-      // Fallback: search by student / ID number in learners table
-      if (!user) {
-        try {
-          const rawLearners: any[] = await prisma.$queryRawUnsafe(
-            `SELECT * FROM "learners" WHERE "idNumber" = $1 LIMIT 1`,
-            cleanIdentifier
-          );
-          if (rawLearners && rawLearners.length > 0) {
-            user = await prisma.user.findUnique({ where: { id: rawLearners[0].userId } });
-          }
-        } catch (_) {}
+      const userRes = await query(`SELECT * FROM "users" WHERE LOWER(email) = LOWER($1) LIMIT 1`, [cleanIdentifier]);
+      if (userRes.rows.length > 0) {
+        user = userRes.rows[0];
+      } else {
+        // Search learner by idNumber or learnerNumber
+        const learnerRes = await query(
+          `SELECT u.* FROM "learners" l JOIN "users" u ON l."userId" = u.id WHERE l."idNumber" = $1 OR l."learnerNumber" = $1 LIMIT 1`,
+          [cleanIdentifier]
+        );
+        if (learnerRes.rows.length > 0) {
+          user = learnerRes.rows[0];
+        }
       }
 
       if (!user) {
         return res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
       }
 
-      // 3. Verify Password Hash
+      // 4. Verify Password Hash
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (!isMatch) {
         const currentCount = (attemptInfo?.count || 0) + 1;
         if (currentCount >= 5) {
-          const lockedUntil = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+          const lockedUntil = new Date(Date.now() + 5 * 60 * 1000);
           loginAttemptsMap.set(cleanIdentifier, {
             count: currentCount,
             lockedUntil,
             lastAttempt: new Date(),
           });
 
-          // Send Security Alert Email
-          EmailService.sendCustomEmail({
-            recipientEmail: user.email,
-            recipientName: `${user.name} ${user.surname}`,
-            subject: 'Security Alert: Account Temporarily Locked - ThutoTech',
-            title: 'Multiple Failed Login Attempts Detected',
-            body: `We detected 5 consecutive failed login attempts on your ThutoTech account. As a security precaution, your account has been temporarily locked for 5 minutes.\n\nIf this was not you, please reset your password immediately upon account unlock.`,
-            fromName: 'ThutoTech Security Office',
-          });
-
           return res.status(423).json({
             success: false,
-            message: 'Account locked for 5 minutes due to 5 consecutive failed login attempts. A security alert was sent to your email.',
+            message: 'Account locked for 5 minutes due to 5 consecutive failed login attempts.',
             locked: true,
             remainingSeconds: 300,
           });
@@ -200,38 +111,30 @@ export class AuthController {
             count: currentCount,
             lastAttempt: new Date(),
           });
-          const remaining = 5 - currentCount;
           return res.status(401).json({
             success: false,
-            message: `Invalid password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before security lockout.`,
-            attemptsRemaining: remaining,
+            message: `Invalid password. Attempt ${currentCount} of 5.`,
+            attemptsRemaining: 5 - currentCount,
           });
         }
       }
 
-      // 4. Reset failed attempts on success
+      // Reset failed attempts
       loginAttemptsMap.delete(cleanIdentifier);
 
-      // 5. Generate Signed JWT Token
-      const secret = process.env.JWT_SECRET || 'thutotech_secret';
+      // Generate JWT Token
       const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role, schoolId: user.schoolId },
         secret,
         { expiresIn: '7d' }
       );
 
-      // Record Audit Log if Prisma auditLog model exists
+      // Record Audit Log in SQL
       try {
-        await prisma.auditLog.create({
-          data: {
-            userId: user.id,
-            userName: `${user.name} ${user.surname}`,
-            role: user.role,
-            action: 'LOGIN_SUCCESS',
-            entity: 'Session',
-            details: `User logged in with role: ${user.role}`,
-          },
-        });
+        await query(`
+          INSERT INTO "audit_logs" ("id", "userId", "userName", "role", "action", "entity", "details")
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [uuidv4(), user.id, `${user.name} ${user.surname}`, user.role, 'LOGIN_SUCCESS', 'Session', `User logged in with role: ${user.role}`]);
       } catch (_) {}
 
       return res.json({
@@ -246,9 +149,6 @@ export class AuthController {
           role: user.role,
           phone: user.phone,
           status: user.status,
-          learner: user.learner,
-          parent: user.parent,
-          teacher: user.teacher,
         },
       });
     } catch (error: any) {
@@ -262,28 +162,18 @@ export class AuthController {
         return res.status(401).json({ success: false, message: 'Unauthorized.' });
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        include: {
-          learner: true,
-          parent: { include: { relationships: { include: { learner: true } } } },
-          teacher: true,
-        },
-      });
-
-      if (!user) {
+      const userRes = await query(`SELECT * FROM "users" WHERE id = $1 LIMIT 1`, [req.user.id]);
+      if (userRes.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'User not found.' });
       }
 
+      const user = userRes.rows[0];
       return res.json({ success: true, data: user });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
 
-  /**
-   * Request 6-digit Password Reset OTP with 2-minute expiry
-   */
   static async forgotPassword(req: Request, res: Response) {
     try {
       const { email } = req.body;
@@ -292,41 +182,28 @@ export class AuthController {
       }
 
       const cleanEmail = email.trim().toLowerCase();
-      const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
+      const userRes = await query(`SELECT * FROM "users" WHERE LOWER(email) = LOWER($1) LIMIT 1`, [cleanEmail]);
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'No account found with this email address.',
-        });
+      if (userRes.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'No account found with this email address.' });
       }
 
-      // Generate 6-digit OTP
+      const user = userRes.rows[0];
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-      // 2-minute expiry strictly enforced
       const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
 
       // Invalidate previous OTPs
-      await prisma.passwordResetOtp.updateMany({
-        where: { email: cleanEmail, used: false },
-        data: { used: true },
-      });
+      await query(`UPDATE "password_reset_otps" SET "used" = TRUE WHERE LOWER("email") = LOWER($1) AND "used" = FALSE`, [cleanEmail]);
 
       // Save new OTP
-      await prisma.passwordResetOtp.create({
-        data: {
-          email: cleanEmail,
-          otp,
-          expiresAt,
-          used: false,
-        },
-      });
+      await query(`
+        INSERT INTO "password_reset_otps" ("id", "email", "otp", "expiresAt", "used")
+        VALUES ($1, $2, $3, $4, FALSE)
+      `, [uuidv4(), cleanEmail, otp, expiresAt]);
 
       const frontendUrl = process.env.FRONTEND_URL || 'https://thutotech.co.za';
       const resetLink = `${frontendUrl}/#/reset-password?email=${encodeURIComponent(cleanEmail)}&otp=${otp}`;
 
-      // Dispatch Email
       await EmailService.sendPasswordResetOtpEmail({
         recipientEmail: cleanEmail,
         recipientName: `${user.name} ${user.surname}`,
@@ -344,9 +221,6 @@ export class AuthController {
     }
   }
 
-  /**
-   * Verify 6-digit OTP
-   */
   static async verifyOtp(req: Request, res: Response) {
     try {
       const { email, otp } = req.body;
@@ -357,20 +231,18 @@ export class AuthController {
       const cleanEmail = email.trim().toLowerCase();
       const cleanOtp = otp.trim();
 
-      const record = await prisma.passwordResetOtp.findFirst({
-        where: {
-          email: cleanEmail,
-          otp: cleanOtp,
-          used: false,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      const otpRes = await query(`
+        SELECT * FROM "password_reset_otps"
+        WHERE LOWER("email") = LOWER($1) AND "otp" = $2 AND "used" = FALSE
+        ORDER BY "createdAt" DESC LIMIT 1
+      `, [cleanEmail, cleanOtp]);
 
-      if (!record) {
+      if (otpRes.rows.length === 0) {
         return res.status(400).json({ success: false, message: 'Invalid or incorrect OTP.' });
       }
 
-      if (new Date() > record.expiresAt) {
+      const record = otpRes.rows[0];
+      if (new Date() > new Date(record.expiresAt)) {
         return res.status(400).json({
           success: false,
           message: 'This OTP has expired (2-minute limit exceeded). Please request a new one.',
@@ -387,9 +259,6 @@ export class AuthController {
     }
   }
 
-  /**
-   * Reset Password with Levenshtein old password similarity check
-   */
   static async resetPassword(req: Request, res: Response) {
     try {
       const { email, otp, newPassword } = req.body;
@@ -400,39 +269,27 @@ export class AuthController {
       const cleanEmail = email.trim().toLowerCase();
       const cleanOtp = otp.trim();
 
-      const record = await prisma.passwordResetOtp.findFirst({
-        where: {
-          email: cleanEmail,
-          otp: cleanOtp,
-          used: false,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      const otpRes = await query(`
+        SELECT * FROM "password_reset_otps"
+        WHERE LOWER("email") = LOWER($1) AND "otp" = $2 AND "used" = FALSE
+        ORDER BY "createdAt" DESC LIMIT 1
+      `, [cleanEmail, cleanOtp]);
 
-      if (!record || new Date() > record.expiresAt) {
+      if (otpRes.rows.length === 0 || new Date() > new Date(otpRes.rows[0].expiresAt)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired OTP. Please request a new code.',
         });
       }
 
-      const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found.' });
-      }
-
-      // Hash new password and update
+      const record = otpRes.rows[0];
       const newHash = await bcrypt.hash(newPassword, 10);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash: newHash },
-      });
+
+      // Update password
+      await query(`UPDATE "users" SET "passwordHash" = $1 WHERE LOWER("email") = LOWER($2)`, [newHash, cleanEmail]);
 
       // Mark OTP as used
-      await prisma.passwordResetOtp.update({
-        where: { id: record.id },
-        data: { used: true },
-      });
+      await query(`UPDATE "password_reset_otps" SET "used" = TRUE WHERE "id" = $1`, [record.id]);
 
       return res.json({
         success: true,
