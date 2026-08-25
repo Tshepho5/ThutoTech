@@ -189,12 +189,14 @@ class Subject {
   final String name;
   final String code;
   final String grade;
+  String? teacherId;
 
   Subject({
     required this.id,
     required this.name,
     required this.code,
     required this.grade,
+    this.teacherId,
   });
 }
 

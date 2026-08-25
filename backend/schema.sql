@@ -361,6 +361,23 @@ CREATE INDEX IF NOT EXISTS "idx_learners_idNumber" ON "learners"("idNumber");
 CREATE INDEX IF NOT EXISTS "idx_learners_grade" ON "learners"("grade");
 CREATE INDEX IF NOT EXISTS "idx_assignments_classId" ON "assignments"("classId");
 CREATE INDEX IF NOT EXISTS "idx_attendance_date" ON "attendance_records"("date");
-CREATE INDEX IF NOT EXISTS "idx_notifications_recipient" ON "notifications"("recipientUserId");
 CREATE INDEX IF NOT EXISTS "idx_audit_logs_user" ON "audit_logs"("userId");
 CREATE INDEX IF NOT EXISTS "idx_admissions_appNum" ON "admission_applications"("applicationNumber");
+
+-- 22. Permanent System Super Administrator Seed
+INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
+VALUES (
+    'usr_admin_lebogang',
+    'thutotech.admin@gmail.com',
+    '$2a$10$7zB3cT7v.wGZ5E9u2rQ8f.gV6iRzX0pL5kL2jQ4m8v7y1n9x3q5We',
+    'Lebogang',
+    'Makola',
+    'ADMIN',
+    '0820605107',
+    'ACTIVE'
+)
+ON CONFLICT ("email") DO UPDATE SET
+    "name" = 'Lebogang',
+    "surname" = 'Makola',
+    "role" = 'ADMIN',
+    "status" = 'ACTIVE';

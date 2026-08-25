@@ -96,15 +96,15 @@ class MockDatabase extends ChangeNotifier {
 
     // Seed Core System Users with Secure Authenticated Credentials
     final adminUser = User(
-      id: 'usr_admin',
-      email: 'admin@thutotech.co.za',
-      name: 'System',
-      surname: 'Administrator',
+      id: 'usr_admin_lebogang',
+      email: 'thutotech.admin@gmail.com',
+      name: 'Lebogang',
+      surname: 'Makola',
       role: UserRole.admin,
-      phone: '0821112233',
+      phone: '0820605107',
       avatarUrl: '',
       schoolId: 'sch_thutotech',
-      password: 'Admin@2026!',
+      password: '#Admin#\$5\$',
       twoFactorEnabled: true,
     );
 
@@ -134,33 +134,7 @@ class MockDatabase extends ChangeNotifier {
       twoFactorEnabled: false,
     );
 
-    final parentUser = User(
-      id: 'usr_parent_makola',
-      email: 'parent@thutotech.co.za',
-      name: 'Sibusiso',
-      surname: 'Makola',
-      role: UserRole.parent,
-      phone: '0829990011',
-      avatarUrl: '',
-      schoolId: 'sch_thutotech',
-      password: 'Parent@2026!',
-      twoFactorEnabled: false,
-    );
-
-    final learnerUser = User(
-      id: 'usr_lrn_20260001',
-      email: '20260001@thutotech.co.za',
-      name: 'Lerato',
-      surname: 'Makola',
-      role: UserRole.learner,
-      phone: '0812223344',
-      avatarUrl: '',
-      schoolId: 'sch_thutotech',
-      password: 'Learner@2026!',
-      twoFactorEnabled: false,
-    );
-
-    users = [adminUser, principalUser, teacherUser, parentUser, learnerUser];
+    users = [adminUser, principalUser, teacherUser];
 
     // Seed Teachers Profile
     teachers = [
@@ -175,42 +149,9 @@ class MockDatabase extends ChangeNotifier {
       ),
     ];
 
-    // Seed Learners Profile
-    learners = [
-      Learner(
-        id: 'lrn_20260001',
-        userId: 'usr_lrn_20260001',
-        learnerNumber: '20260001',
-        idNumber: '0905145000088',
-        fullName: 'Lerato',
-        surname: 'Makola',
-        gender: 'Female',
-        dateOfBirth: DateTime(2009, 5, 14),
-        age: 16,
-        grade: 'Grade 10',
-        className: 'Grade 10A (Science)',
-        homeLanguage: 'Sepedi',
-        firstAdditionalLanguage: 'English',
-        stream: 'Pure Science & Technology',
-        schoolId: 'sch_thutotech',
-        parentId: 'par_makola',
-        attendancePercentage: 98.0,
-        overallAverage: 84.5,
-      ),
-    ];
-
-    // Seed Parents Profile
-    parents = [
-      Parent(
-        id: 'par_makola',
-        userId: 'usr_parent_makola',
-        fullName: 'Sibusiso',
-        surname: 'Makola',
-        phone: '0829990011',
-        email: 'parent@thutotech.co.za',
-        linkedLearnerIds: ['lrn_20260001'],
-      ),
-    ];
+    // Initial Learners & Parents are populated dynamically via real admissions/registrations
+    learners = [];
+    parents = [];
   }
 
   // --- HARDENED AUTHENTICATION & BRUTE-FORCE DEFENSE ---
@@ -1326,6 +1267,174 @@ ThutoTech Security Office
 
     _activeTwoFactorOtps.remove(cleanEmail);
     return true;
+  }
+
+  // --- Admin User, Teacher, Subject & System Management ---
+  void addTeacher({
+    required String name,
+    required String surname,
+    required String email,
+    required String phone,
+    required String password,
+    required List<String> subjectIds,
+    required List<String> classIds,
+  }) {
+    final cleanEmail = email.trim().toLowerCase();
+    if (users.any((u) => u.email.toLowerCase() == cleanEmail)) {
+      throw Exception('A user with email $cleanEmail already exists in the system.');
+    }
+
+    final userId = 'usr_tch_${DateTime.now().millisecondsSinceEpoch}';
+    final teacherId = 'tch_${DateTime.now().millisecondsSinceEpoch}';
+
+    final newUser = User(
+      id: userId,
+      email: cleanEmail,
+      name: name.trim(),
+      surname: surname.trim(),
+      role: UserRole.teacher,
+      phone: phone.trim(),
+      avatarUrl: '',
+      schoolId: 'sch_thutotech',
+      password: password.trim(),
+      twoFactorEnabled: false,
+    );
+
+    final newTeacher = Teacher(
+      id: teacherId,
+      userId: userId,
+      fullName: name.trim(),
+      surname: surname.trim(),
+      assignedSubjectIds: subjectIds,
+      assignedClassIds: classIds,
+      schoolId: 'sch_thutotech',
+    );
+
+    users.add(newUser);
+    teachers.add(newTeacher);
+
+    // Update subjects teacherId
+    for (final sId in subjectIds) {
+      final sIndex = subjects.indexWhere((s) => s.id == sId);
+      if (sIndex != -1) {
+        subjects[sIndex].teacherId = teacherId;
+      }
+    }
+
+    auditLogs.insert(
+      0,
+      AuditLog(
+        id: 'aud_${DateTime.now().millisecondsSinceEpoch}',
+        userId: currentUser?.id ?? 'usr_admin_lebogang',
+        userName: currentUser?.fullName ?? 'Lebogang Makola',
+        role: 'ADMIN',
+        action: 'TEACHER_CREATED',
+        entity: 'Teacher: $name $surname ($email)',
+        timestamp: DateTime.now(),
+        details: 'Admin Lebogang Makola appointed teacher $name $surname and assigned ${subjectIds.length} subject(s)',
+      ),
+    );
+
+    notifyListeners();
+  }
+
+  void assignTeacherToSubject(String subjectId, String teacherId) {
+    final sIndex = subjects.indexWhere((s) => s.id == subjectId);
+    if (sIndex != -1) {
+      subjects[sIndex].teacherId = teacherId;
+    }
+    final tIndex = teachers.indexWhere((t) => t.id == teacherId);
+    if (tIndex != -1) {
+      if (!teachers[tIndex].assignedSubjectIds.contains(subjectId)) {
+        teachers[tIndex].assignedSubjectIds.add(subjectId);
+      }
+    }
+
+    auditLogs.insert(
+      0,
+      AuditLog(
+        id: 'aud_${DateTime.now().millisecondsSinceEpoch}',
+        userId: currentUser?.id ?? 'usr_admin_lebogang',
+        userName: currentUser?.fullName ?? 'Lebogang Makola',
+        role: 'ADMIN',
+        action: 'SUBJECT_TEACHER_ASSIGNED',
+        entity: 'Subject: $subjectId -> Teacher: $teacherId',
+        timestamp: DateTime.now(),
+        details: 'Admin assigned teacher $teacherId to subject $subjectId',
+      ),
+    );
+
+    notifyListeners();
+  }
+
+  void assignTeacherToClass(String classId, String teacherId) {
+    final tIndex = teachers.indexWhere((t) => t.id == teacherId);
+    if (tIndex != -1) {
+      if (!teachers[tIndex].assignedClassIds.contains(classId)) {
+        teachers[tIndex].assignedClassIds.add(classId);
+      }
+    }
+    notifyListeners();
+  }
+
+  void deleteUser(String userId) {
+    if (userId == 'usr_admin_lebogang') {
+      throw Exception('Super Administrator account cannot be deleted.');
+    }
+    users.removeWhere((u) => u.id == userId);
+    teachers.removeWhere((t) => t.userId == userId);
+    parents.removeWhere((p) => p.userId == userId);
+    learners.removeWhere((l) => l.userId == userId);
+
+    auditLogs.insert(
+      0,
+      AuditLog(
+        id: 'aud_${DateTime.now().millisecondsSinceEpoch}',
+        userId: currentUser?.id ?? 'usr_admin_lebogang',
+        userName: currentUser?.fullName ?? 'Lebogang Makola',
+        role: 'ADMIN',
+        action: 'USER_DELETED',
+        entity: 'User ID: $userId',
+        timestamp: DateTime.now(),
+        details: 'Admin removed user record $userId from system registry',
+      ),
+    );
+
+    notifyListeners();
+  }
+
+  void broadcastAnnouncement({required String title, required String content, required String priority, required List<String> targetRoles}) {
+    AnnouncementPriority annPriority = AnnouncementPriority.normal;
+    if (priority.toLowerCase() == 'urgent') annPriority = AnnouncementPriority.urgent;
+    if (priority.toLowerCase() == 'high') annPriority = AnnouncementPriority.high;
+
+    final announcement = Announcement(
+      id: 'anc_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      content: content,
+      authorName: currentUser?.fullName ?? 'Lebogang Makola (Super Admin)',
+      publishedAt: DateTime.now(),
+      audience: targetRoles.join(', '),
+      priority: annPriority,
+    );
+
+    announcements.insert(0, announcement);
+
+    auditLogs.insert(
+      0,
+      AuditLog(
+        id: 'aud_${DateTime.now().millisecondsSinceEpoch}',
+        userId: currentUser?.id ?? 'usr_admin_lebogang',
+        userName: currentUser?.fullName ?? 'Lebogang Makola',
+        role: 'ADMIN',
+        action: 'ANNOUNCEMENT_BROADCAST',
+        entity: 'Announcement: $title',
+        timestamp: DateTime.now(),
+        details: 'Admin broadcasted announcement "$title" to audience: ${targetRoles.join(", ")}',
+      ),
+    );
+
+    notifyListeners();
   }
 }
 
