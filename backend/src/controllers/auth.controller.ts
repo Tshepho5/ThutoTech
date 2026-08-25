@@ -70,13 +70,31 @@ export class AuthController {
       });
 
       if (!user) {
-        // Search by learner student number
-        const learnerRecord = await prisma.learner.findUnique({
-          where: { learnerNumber: cleanIdentifier },
-          include: { user: { include: { learner: true, parent: true, teacher: true } } },
-        });
-        if (learnerRecord && learnerRecord.user) {
-          user = learnerRecord.user;
+        // Safe search by learner student number / national ID number
+        try {
+          const learnerRecord = await prisma.learner.findFirst({
+            where: {
+              OR: [
+                { idNumber: cleanIdentifier },
+                { learnerNumber: cleanIdentifier },
+              ],
+            },
+            include: { user: { include: { learner: true, parent: true, teacher: true } } },
+          });
+          if (learnerRecord && learnerRecord.user) {
+            user = learnerRecord.user;
+          }
+        } catch (_) {
+          // If column is temporarily missing on current database instance, search by idNumber
+          try {
+            const learnerById = await prisma.learner.findFirst({
+              where: { idNumber: cleanIdentifier },
+              include: { user: { include: { learner: true, parent: true, teacher: true } } },
+            });
+            if (learnerById && learnerById.user) {
+              user = learnerById.user;
+            }
+          } catch (__) {}
         }
       }
 
