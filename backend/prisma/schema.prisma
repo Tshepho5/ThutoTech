@@ -358,49 +358,78 @@ model AuditLog {
 }
 
 model AdmissionApplication {
-  id                      String            @id @default(uuid())
-  applicationNumber       String            @unique
+  id                         String               @id @default(uuid())
+  applicationNumber          String               @unique
   // Primary Parent
-  primaryParentName       String
-  primaryParentSurname    String
-  primaryParentPhone      String
-  primaryParentEmail      String
-  primaryParentIdNumber   String
-  primaryParentGender     String?
-  primaryParentDob        DateTime?
+  primaryParentName          String
+  primaryParentSurname       String
+  primaryParentPhone         String
+  primaryParentEmail         String
+  primaryParentIdNumber      String
+  primaryParentGender        String?
+  primaryParentDob           DateTime?
+  primaryParentDocumentUrl   String?
   // Optional Secondary Parent
-  hasSecondaryParent      Boolean           @default(false)
-  secondaryParentName     String?
-  secondaryParentSurname  String?
-  secondaryParentPhone    String?
-  secondaryParentEmail    String?
-  secondaryParentIdNumber String?
-  secondaryParentGender   String?
-  secondaryParentDob      DateTime?
-  // Learner Info
-  learnerName             String
-  learnerSurname          String
-  learnerIdNumber         String            // 13 digits
-  learnerGender           String?
-  learnerDob              DateTime?
-  learnerAge              Int?
-  gradeApplyingFor        String
-  homeLanguage            String            @default("English")
-  firstAdditionalLanguage String?           @default("Afrikaans")
-  stream                  String?           // Science, Commerce, Tourism (Gr 10-12)
-  previousSchool          String
-  documentVerified        Boolean           @default(false)
+  hasSecondaryParent         Boolean              @default(false)
+  secondaryParentName        String?
+  secondaryParentSurname     String?
+  secondaryParentPhone       String?
+  secondaryParentEmail       String?
+  secondaryParentIdNumber    String?
+  secondaryParentGender      String?
+  secondaryParentDob         DateTime?
+  secondaryParentDocumentUrl String?
+  // Multi-Learner Relationship
+  learners                   ApplicationLearner[]
+  // Legacy / Single Learner Compatibility fields
+  learnerName                String?
+  learnerSurname             String?
+  learnerIdNumber            String?
+  learnerGender              String?
+  learnerDob                 DateTime?
+  learnerAge                 Int?
+  gradeApplyingFor           String?
+  homeLanguage               String?              @default("English")
+  firstAdditionalLanguage    String?              @default("Afrikaans")
+  stream                     String?
+  previousSchool             String?
+  documentVerified           Boolean              @default(false)
   // Workflow Status
-  status                  ApplicationStatus @default(SUBMITTED)
-  registrationToken       String            @unique
-  reviewerNotes           String?
-  reviewedAt              DateTime?
-  submittedAt             DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
+  status                     ApplicationStatus    @default(SUBMITTED)
+  registrationToken          String               @unique
+  reviewerNotes              String?
+  reviewedAt                 DateTime?
+  submittedAt                DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
 
   @@index([applicationNumber])
   @@index([registrationToken])
   @@map("admission_applications")
+}
+
+model ApplicationLearner {
+  id                      String               @id @default(uuid())
+  applicationId           String
+  application             AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  learnerName             String
+  learnerSurname          String
+  learnerIdNumber         String               // 13 digits
+  learnerGender           String?
+  learnerDob              DateTime?
+  learnerAge              Int?
+  gradeApplyingFor        String
+  homeLanguage            String               @default("English")
+  firstAdditionalLanguage String?              @default("Afrikaans")
+  stream                  String?              // Science, Commerce, Tourism (Gr 10-12)
+  previousSchool          String
+  documentUrl             String?
+  documentName            String?
+  documentVerified        Boolean              @default(false)
+  createdAt               DateTime             @default(now())
+
+  @@index([applicationId])
+  @@index([learnerIdNumber])
+  @@map("application_learners")
 }
 
 model AutomationRule {

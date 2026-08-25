@@ -96,5 +96,63 @@ void main() {
       // Check that automated welcome email was dispatched
       expect(db.simulatedEmails.any((e) => e.recipientEmail == 'kagiso.mthethwa@gmail.com' && e.body.contains('Thuto@05518')), isTrue);
     });
+
+    test('5. Multi-Learner Admission & Batch Credentials Generation', () {
+      final l1 = ApplicationLearner(
+        id: 'l1',
+        learnerName: 'Lesedi',
+        learnerSurname: 'Mokoena',
+        learnerIdNumber: '0805125841088',
+        gradeApplyingFor: 'Grade 10',
+        homeLanguage: 'English',
+        stream: 'Science Stream (STEM)',
+        previousSchool: 'Limpopo Primary',
+        documentName: 'Lesedi_ID.pdf',
+        documentVerified: true,
+      );
+
+      final l2 = ApplicationLearner(
+        id: 'l2',
+        learnerName: 'Kamohelo',
+        learnerSurname: 'Mokoena',
+        learnerIdNumber: '1001015009087',
+        gradeApplyingFor: 'Grade 8',
+        homeLanguage: 'English',
+        previousSchool: 'Limpopo Primary',
+        documentName: 'Kamohelo_BirthCert.pdf',
+        documentVerified: true,
+      );
+
+      final app = db.submitAdmissionApplication(
+        primaryParentName: 'Boitumelo',
+        primaryParentSurname: 'Mokoena',
+        primaryParentPhone: '0831112233',
+        primaryParentEmail: 'boitumelo.mokoena@gmail.com',
+        primaryParentIdNumber: '7801015009087',
+        primaryParentDocumentName: 'Boitumelo_ID.pdf',
+        hasSecondaryParent: false,
+        learnersList: [l1, l2],
+      );
+
+      expect(app.learners.length, equals(2));
+      db.approveAdmission(app.id);
+
+      final regResult = db.completeRegistration(
+        registrationToken: app.registrationToken,
+        parentName: 'Boitumelo',
+        parentSurname: 'Mokoena',
+        parentEmail: 'boitumelo.mokoena@gmail.com',
+        parentPassword: 'Password123!',
+        registeredLearners: [
+          {'learnerName': 'Lesedi', 'learnerSurname': 'Mokoena', 'learnerIdNumber': '0805125841088'},
+          {'learnerName': 'Kamohelo', 'learnerSurname': 'Mokoena', 'learnerIdNumber': '1001015009087'},
+        ],
+      );
+
+      final registeredLearners = regResult['learners'] as List;
+      expect(registeredLearners.length, equals(2));
+      expect(registeredLearners[0]['learnerEmail'], contains('@thutotech.co.za'));
+      expect(registeredLearners[1]['learnerEmail'], contains('@thutotech.co.za'));
+    });
   });
 }

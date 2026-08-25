@@ -362,27 +362,8 @@ class AuditLog {
 
 enum ApplicationStatus { submitted, underReview, approved, rejected }
 
-class AdmissionApplication {
+class ApplicationLearner {
   final String id;
-  final String applicationNumber;
-  // Primary Parent
-  final String primaryParentName;
-  final String primaryParentSurname;
-  final String primaryParentPhone;
-  final String primaryParentEmail;
-  final String primaryParentIdNumber;
-  final String? primaryParentGender;
-  final DateTime? primaryParentDob;
-  // Optional Secondary Parent
-  final bool hasSecondaryParent;
-  final String? secondaryParentName;
-  final String? secondaryParentSurname;
-  final String? secondaryParentPhone;
-  final String? secondaryParentEmail;
-  final String? secondaryParentIdNumber;
-  final String? secondaryParentGender;
-  final DateTime? secondaryParentDob;
-  // Learner Info
   final String learnerName;
   final String learnerSurname;
   final String learnerIdNumber;
@@ -394,7 +375,62 @@ class AdmissionApplication {
   final String? firstAdditionalLanguage;
   final String? stream;
   final String previousSchool;
+  final String documentName;
   final bool documentVerified;
+
+  ApplicationLearner({
+    required this.id,
+    required this.learnerName,
+    required this.learnerSurname,
+    required this.learnerIdNumber,
+    this.learnerGender,
+    this.learnerDob,
+    this.learnerAge,
+    required this.gradeApplyingFor,
+    this.homeLanguage = 'English',
+    this.firstAdditionalLanguage = 'Afrikaans',
+    this.stream,
+    required this.previousSchool,
+    this.documentName = 'Learner_ID_Document.pdf',
+    this.documentVerified = false,
+  });
+
+  String get completeName => '$learnerName $learnerSurname';
+}
+
+class AdmissionApplication {
+  final String id;
+  final String applicationNumber;
+  // Primary Parent
+  final String primaryParentName;
+  final String primaryParentSurname;
+  final String primaryParentPhone;
+  final String primaryParentEmail;
+  final String primaryParentIdNumber;
+  final String? primaryParentGender;
+  final DateTime? primaryParentDob;
+  final String primaryParentDocumentName;
+  // Optional Secondary Parent
+  final bool hasSecondaryParent;
+  final String? secondaryParentName;
+  final String? secondaryParentSurname;
+  final String? secondaryParentPhone;
+  final String? secondaryParentEmail;
+  final String? secondaryParentIdNumber;
+  final String? secondaryParentGender;
+  final DateTime? secondaryParentDob;
+  final String? secondaryParentDocumentName;
+  // Multi-Learners List
+  final List<ApplicationLearner> learners;
+  // Legacy single learner helpers
+  String get learnerName => learners.isNotEmpty ? learners.first.learnerName : '';
+  String get learnerSurname => learners.isNotEmpty ? learners.first.learnerSurname : '';
+  String get learnerIdNumber => learners.isNotEmpty ? learners.first.learnerIdNumber : '';
+  String get gradeApplyingFor => learners.isNotEmpty ? learners.first.gradeApplyingFor : 'Grade 8';
+  String get homeLanguage => learners.isNotEmpty ? learners.first.homeLanguage : 'English';
+  String? get stream => learners.isNotEmpty ? learners.first.stream : null;
+  String get previousSchool => learners.isNotEmpty ? learners.first.previousSchool : 'Not Specified';
+  bool get documentVerified => learners.isNotEmpty && learners.every((l) => l.documentVerified);
   // Status
   ApplicationStatus status;
   final String registrationToken;
@@ -412,6 +448,7 @@ class AdmissionApplication {
     required this.primaryParentIdNumber,
     this.primaryParentGender,
     this.primaryParentDob,
+    this.primaryParentDocumentName = 'Primary_Parent_ID.pdf',
     this.hasSecondaryParent = false,
     this.secondaryParentName,
     this.secondaryParentSurname,
@@ -420,18 +457,8 @@ class AdmissionApplication {
     this.secondaryParentIdNumber,
     this.secondaryParentGender,
     this.secondaryParentDob,
-    required this.learnerName,
-    required this.learnerSurname,
-    required this.learnerIdNumber,
-    this.learnerGender,
-    this.learnerDob,
-    this.learnerAge,
-    required this.gradeApplyingFor,
-    this.homeLanguage = 'English',
-    this.firstAdditionalLanguage = 'Afrikaans',
-    this.stream,
-    required this.previousSchool,
-    this.documentVerified = false,
+    this.secondaryParentDocumentName,
+    required this.learners,
     this.status = ApplicationStatus.submitted,
     required this.registrationToken,
     required this.submittedAt,

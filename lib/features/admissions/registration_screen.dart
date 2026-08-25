@@ -116,16 +116,34 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Official Learner Credentials:', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text('Official Learner Credentials Generated:', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
                       const Divider(color: Colors.white24, height: 16),
-                      Text('Student Number: ${creds["learnerNumber"]}', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text('Learner Login Email: ${creds["learnerEmail"]}', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text('Generated Password: ${creds["generatedPassword"]}', style: GoogleFonts.outfit(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 8),
+                      if (creds["learners"] != null && (creds["learners"] as List).isNotEmpty) ...[
+                        ...(creds["learners"] as List).map((l) => Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('${l["learnerName"]} ${l["learnerSurname"]}', style: GoogleFonts.outfit(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                                  const SizedBox(height: 4),
+                                  Text('Student No: ${l["learnerNumber"]}', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text('Login Email: ${l["learnerEmail"]}', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 11)),
+                                  Text('Password: ${l["generatedPassword"]}', style: GoogleFonts.outfit(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                                ],
+                              ),
+                            )),
+                      ] else ...[
+                        Text('Student Number: ${creds["learnerNumber"]}', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 4),
+                        Text('Learner Login Email: ${creds["learnerEmail"]}', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text('Generated Password: ${creds["generatedPassword"]}', style: GoogleFonts.outfit(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ],
+                      const SizedBox(height: 6),
                       Text(
-                        '(Password generated via systematic algorithm from 13-digit ID)',
+                        '(Passwords generated via systematic algorithm from 13-digit IDs)',
                         style: GoogleFonts.outfit(color: Colors.white54, fontSize: 10),
                       ),
                     ],

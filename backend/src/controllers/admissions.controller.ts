@@ -14,21 +14,47 @@ export class AdmissionsController {
         primaryParentPhone,
         primaryParentEmail,
         primaryParentIdNumber,
+        primaryParentGender,
+        primaryParentDob,
+        primaryParentDocumentUrl,
         hasSecondaryParent,
         secondaryParentName,
         secondaryParentSurname,
         secondaryParentPhone,
         secondaryParentEmail,
+        secondaryParentIdNumber,
+        secondaryParentGender,
+        secondaryParentDob,
+        secondaryParentDocumentUrl,
+        learners, // Array of learners: [{ learnerName, learnerSurname, learnerIdNumber, gradeApplyingFor, homeLanguage, stream, previousSchool, documentName, documentUrl, documentVerified }]
+        // Single learner backwards compatibility
         learnerName,
         learnerSurname,
         learnerIdNumber,
         gradeApplyingFor,
+        homeLanguage,
+        stream,
         previousSchool,
       } = req.body;
 
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const applicationNumber = `TT-2026-${randomSuffix}`;
       const registrationToken = `REG-TT-${Math.floor(10000 + Math.random() * 90000)}`;
+
+      // Parse learners array or fallback to single learner
+      const rawLearners: any[] = Array.isArray(learners) && learners.length > 0
+        ? learners
+        : [{
+            learnerName: learnerName || '',
+            learnerSurname: learnerSurname || '',
+            learnerIdNumber: learnerIdNumber || '',
+            gradeApplyingFor: gradeApplyingFor || 'Grade 8',
+            homeLanguage: homeLanguage || 'English',
+            stream: stream || null,
+            previousSchool: previousSchool || 'Not Specified',
+            documentName: 'Learner_ID_Copy.pdf',
+            documentVerified: true,
+          }];
 
       const application = await prisma.admissionApplication.create({
         data: {
@@ -38,24 +64,47 @@ export class AdmissionsController {
           primaryParentPhone: primaryParentPhone.trim(),
           primaryParentEmail: primaryParentEmail.trim(),
           primaryParentIdNumber: primaryParentIdNumber.trim(),
+          primaryParentGender: primaryParentGender || null,
+          primaryParentDob: primaryParentDob ? new Date(primaryParentDob) : null,
+          primaryParentDocumentUrl: primaryParentDocumentUrl || null,
           hasSecondaryParent: Boolean(hasSecondaryParent),
           secondaryParentName: secondaryParentName ? secondaryParentName.trim() : null,
           secondaryParentSurname: secondaryParentSurname ? secondaryParentSurname.trim() : null,
           secondaryParentPhone: secondaryParentPhone ? secondaryParentPhone.trim() : null,
           secondaryParentEmail: secondaryParentEmail ? secondaryParentEmail.trim() : null,
-          learnerName: learnerName.trim(),
-          learnerSurname: learnerSurname.trim(),
-          learnerIdNumber: learnerIdNumber.trim(),
-          gradeApplyingFor: gradeApplyingFor.trim(),
-          previousSchool: (previousSchool || 'Not Specified').trim(),
+          secondaryParentIdNumber: secondaryParentIdNumber ? secondaryParentIdNumber.trim() : null,
+          secondaryParentGender: secondaryParentGender || null,
+          secondaryParentDob: secondaryParentDob ? new Date(secondaryParentDob) : null,
+          secondaryParentDocumentUrl: secondaryParentDocumentUrl || null,
           status: ApplicationStatus.SUBMITTED,
           registrationToken,
+          learners: {
+            create: rawLearners.map((l: any) => ({
+              learnerName: (l.learnerName || '').trim(),
+              learnerSurname: (l.learnerSurname || '').trim(),
+              learnerIdNumber: (l.learnerIdNumber || '').trim(),
+              learnerGender: l.learnerGender || null,
+              learnerDob: l.learnerDob ? new Date(l.learnerDob) : null,
+              learnerAge: l.learnerAge ? Number(l.learnerAge) : null,
+              gradeApplyingFor: (l.gradeApplyingFor || 'Grade 8').trim(),
+              homeLanguage: (l.homeLanguage || 'English').trim(),
+              firstAdditionalLanguage: (l.firstAdditionalLanguage || 'Afrikaans').trim(),
+              stream: l.stream ? l.stream.trim() : null,
+              previousSchool: (l.previousSchool || 'Not Specified').trim(),
+              documentName: l.documentName || null,
+              documentUrl: l.documentUrl || null,
+              documentVerified: Boolean(l.documentVerified),
+            })),
+          },
+        },
+        include: {
+          learners: true,
         },
       });
 
       return res.status(201).json({
         success: true,
-        message: 'Admission application submitted successfully.',
+        message: `Admission application submitted for ${rawLearners.length} learner(s).`,
         data: application,
       });
     } catch (error: any) {
@@ -73,6 +122,7 @@ export class AdmissionsController {
 
       const applications = await prisma.admissionApplication.findMany({
         where,
+        include: { learners: true },
         orderBy: { submittedAt: 'desc' },
       });
 
@@ -87,7 +137,10 @@ export class AdmissionsController {
       const { id } = req.params;
       const { notes } = req.body;
 
-      const app = await prisma.admissionApplication.findUnique({ where: { id } });
+      const app = await prisma.admissionApplication.findUnique({
+        where: { id },
+        include: { learners: true },
+      });
       if (!app) {
         return res.status(404).json({ success: false, message: 'Application not found.' });
       }
@@ -99,18 +152,21 @@ export class AdmissionsController {
           reviewedAt: new Date(),
           reviewerNotes: notes || 'Approved by School Principal.',
         },
+        include: { learners: true },
       });
+
+      const firstLearner = updated.learners[0] || {};
 
       // Dispatch automated admission approval email
       await EmailService.sendAdmissionApprovalEmail({
         recipientEmail: updated.primaryParentEmail,
         parentName: updated.primaryParentName,
         parentSurname: updated.primaryParentSurname,
-        learnerName: updated.learnerName,
-        learnerSurname: updated.learnerSurname,
-        grade: updated.gradeApplyingFor,
-        homeLanguage: updated.homeLanguage || 'English',
-        stream: updated.stream || undefined,
+        learnerName: firstLearner.learnerName || updated.primaryParentSurname + ' Child',
+        learnerSurname: firstLearner.learnerSurname || updated.primaryParentSurname,
+        grade: firstLearner.gradeApplyingFor || 'Grade 10',
+        homeLanguage: firstLearner.homeLanguage || 'English',
+        stream: firstLearner.stream || undefined,
         applicationNumber: updated.applicationNumber,
         registrationToken: updated.registrationToken,
       });
@@ -133,122 +189,154 @@ export class AdmissionsController {
         parentSurname,
         parentEmail,
         parentPassword,
+        learners,
+        // Single learner fallback
         learnerName,
         learnerSurname,
         learnerIdNumber,
       } = req.body;
 
-      // 1. Verify Token
-      const application = await prisma.admissionApplication.findUnique({
-        where: { registrationToken: registrationToken.trim() },
+      const app = await prisma.admissionApplication.findUnique({
+        where: { registrationToken },
+        include: { learners: true },
       });
 
-      if (!application || application.status !== ApplicationStatus.APPROVED) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid registration token or application has not yet been approved.',
-        });
+      if (!app) {
+        return res.status(404).json({ success: false, message: 'Invalid or expired registration token.' });
       }
 
-      // Check if user already exists
-      const existingUser = await prisma.user.findUnique({ where: { email: parentEmail.trim() } });
-      if (existingUser) {
-        return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+      if (app.status !== ApplicationStatus.APPROVED) {
+        return res.status(400).json({ success: false, message: 'Application has not been approved yet.' });
       }
 
-      const passwordHash = await bcrypt.hash(parentPassword, 10);
-      const school = await prisma.school.findFirst();
-      const schoolId = school?.id || uuidv4();
+      // Check if parent user already exists
+      let parentUser = await prisma.user.findUnique({ where: { email: parentEmail } });
+      let parentEntity: any = null;
 
-      // Transactionally create Parent User, Learner User, and relational entities
-      const result = await prisma.$transaction(async (tx) => {
-        // Create Parent User
-        const parentUser = await tx.user.create({
+      if (!parentUser) {
+        const passwordHash = await bcrypt.hash(parentPassword, 10);
+        parentUser = await prisma.user.create({
           data: {
-            email: parentEmail.trim(),
+            email: parentEmail.toLowerCase().trim(),
             passwordHash,
             name: parentName.trim(),
             surname: parentSurname.trim(),
             role: UserRole.PARENT,
-            phone: application.primaryParentPhone,
+            phone: app.primaryParentPhone,
             status: UserStatus.ACTIVE,
-            schoolId,
           },
         });
 
-        // Create Parent Entity
-        const parentEntity = await tx.parent.create({
+        parentEntity = await prisma.parent.create({
           data: {
             userId: parentUser.id,
             fullName: parentName.trim(),
             surname: parentSurname.trim(),
-            phone: application.primaryParentPhone,
-            email: parentEmail.trim(),
-            hasSecondaryParent: application.hasSecondaryParent,
-            secondaryParentFullName: application.secondaryParentName,
-            secondaryParentSurname: application.secondaryParentSurname,
-            secondaryParentPhone: application.secondaryParentPhone,
-            secondaryParentEmail: application.secondaryParentEmail,
+            phone: app.primaryParentPhone,
+            email: parentEmail.toLowerCase().trim(),
+            hasSecondaryParent: app.hasSecondaryParent,
+            secondaryParentFullName: app.secondaryParentName,
+            secondaryParentSurname: app.secondaryParentSurname,
+            secondaryParentPhone: app.secondaryParentPhone,
+            secondaryParentEmail: app.secondaryParentEmail,
           },
         });
+      } else {
+        parentEntity = await prisma.parent.findUnique({ where: { userId: parentUser.id } });
+      }
 
-        // Create Learner User
-        const learnerEmail = `${learnerName.toLowerCase()}.${learnerSurname.toLowerCase()}@learner.thutotech.co.za`;
-        const learnerUser = await tx.user.create({
+      const learnersToRegister: any[] = Array.isArray(learners) && learners.length > 0
+        ? learners
+        : [{
+            learnerName: learnerName || app.learners[0]?.learnerName,
+            learnerSurname: learnerSurname || app.learners[0]?.learnerSurname,
+            learnerIdNumber: learnerIdNumber || app.learners[0]?.learnerIdNumber,
+          }];
+
+      const createdLearners: any[] = [];
+      let seq = 1;
+
+      for (const rawL of learnersToRegister) {
+        const lName = (rawL.learnerName || '').trim();
+        const lSurname = (rawL.learnerSurname || '').trim();
+        const lIdNum = (rawL.learnerIdNumber || '').trim();
+
+        const year = new Date().getFullYear();
+        const learnerNumber = `${year}${String(Math.floor(1000 + Math.random() * 9000)).padStart(4, '0')}`;
+        const learnerEmail = `${learnerNumber}@thutotech.co.za`;
+
+        // Systematic password rule: Thuto@ + id[0] + id[3] + id[6] + id[9] + id[12]
+        let generatedPassword = 'Thuto@2026!';
+        if (lIdNum.length >= 13) {
+          let extracted = '';
+          for (let i = 0; i < lIdNum.length; i += 3) {
+            extracted += lIdNum[i];
+          }
+          generatedPassword = `Thuto@${extracted}`;
+        }
+
+        const learnerPassHash = await bcrypt.hash(generatedPassword, 10);
+        const learnerUser = await prisma.user.create({
           data: {
             email: learnerEmail,
-            passwordHash,
-            name: learnerName.trim(),
-            surname: learnerSurname.trim(),
+            passwordHash: learnerPassHash,
+            name: lName,
+            surname: lSurname,
             role: UserRole.LEARNER,
             status: UserStatus.ACTIVE,
-            schoolId,
           },
         });
 
-        // Create Learner Entity
-        const learnerEntity = await tx.learner.create({
+        const appLearner = app.learners.find(al => al.learnerIdNumber === lIdNum) || app.learners[0];
+
+        const learnerEntity = await prisma.learner.create({
           data: {
             userId: learnerUser.id,
-            idNumber: learnerIdNumber.trim(),
-            fullName: learnerName.trim(),
-            surname: learnerSurname.trim(),
-            grade: application.gradeApplyingFor,
-            className: `${application.gradeApplyingFor}A`,
-            schoolId,
-            attendancePercentage: 100.0,
-            overallAverage: 0.0,
+            learnerNumber,
+            idNumber: lIdNum,
+            fullName: lName,
+            surname: lSurname,
+            grade: appLearner?.gradeApplyingFor || 'Grade 8',
+            className: `${appLearner?.gradeApplyingFor || 'Grade 8'}A`,
+            homeLanguage: appLearner?.homeLanguage || 'English',
+            firstAdditionalLanguage: appLearner?.firstAdditionalLanguage || 'Afrikaans',
+            stream: appLearner?.stream || null,
+            schoolId: 'sch_thutotech',
+            parents: {
+              create: {
+                parentId: parentEntity.id,
+              },
+            },
           },
         });
 
-        // Create Parent-Learner Relationship
-        await tx.parentLearnerRelationship.create({
-          data: {
-            parentId: parentEntity.id,
-            learnerId: learnerEntity.id,
-            status: 'ACTIVE',
-          },
+        // Send registration welcome email with generated credentials
+        await EmailService.sendRegistrationSuccessEmail({
+          recipientEmail: parentEmail,
+          parentName,
+          parentSurname,
+          learnerName: lName,
+          learnerSurname: lSurname,
+          learnerNumber,
+          learnerEmail,
+          generatedPassword,
         });
 
-        // Log Audit Event
-        await tx.auditLog.create({
-          data: {
-            userId: parentUser.id,
-            userName: `${parentName} ${parentSurname}`,
-            role: 'PARENT',
-            action: 'REGISTRATION_COMPLETED',
-            entity: `Parent & Learner Account Activation`,
-            details: `Registered parent and linked learner ${learnerName} ${learnerSurname} (ID: ${learnerIdNumber})`,
-          },
+        createdLearners.push({
+          learnerNumber,
+          learnerEmail,
+          generatedPassword,
+          fullName: `${lName} ${lSurname}`,
         });
-
-        return { parentUser, learnerUser, parentEntity, learnerEntity };
-      });
+      }
 
       return res.status(201).json({
         success: true,
-        message: 'Registration completed successfully. Accounts are active.',
-        data: result,
+        message: 'Parent and learner(s) successfully registered. Access credentials dispatched via email.',
+        data: {
+          parentEmail,
+          learners: createdLearners,
+        },
       });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });

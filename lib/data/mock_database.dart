@@ -126,6 +126,7 @@ class MockDatabase extends ChangeNotifier {
     required String primaryParentIdNumber,
     String? primaryParentGender,
     DateTime? primaryParentDob,
+    String primaryParentDocumentName = 'Primary_Parent_ID.pdf',
     required bool hasSecondaryParent,
     String? secondaryParentName,
     String? secondaryParentSurname,
@@ -134,22 +135,46 @@ class MockDatabase extends ChangeNotifier {
     String? secondaryParentIdNumber,
     String? secondaryParentGender,
     DateTime? secondaryParentDob,
-    required String learnerName,
-    required String learnerSurname,
-    required String learnerIdNumber,
+    String? secondaryParentDocumentName,
+    List<ApplicationLearner>? learnersList,
+    // Single learner backwards compatibility
+    String? learnerName,
+    String? learnerSurname,
+    String? learnerIdNumber,
     String? learnerGender,
     DateTime? learnerDob,
     int? learnerAge,
-    required String gradeApplyingFor,
-    required String homeLanguage,
+    String? gradeApplyingFor,
+    String? homeLanguage,
     String? firstAdditionalLanguage,
     String? stream,
-    required String previousSchool,
+    String? previousSchool,
     bool documentVerified = true,
   }) {
     final randNum = (1000 + admissions.length * 7 + 12).toString();
     final appNumber = 'TT-2026-$randNum';
     final token = 'REG-TT-${10000 + (DateTime.now().millisecondsSinceEpoch % 89999)}';
+
+    final effectiveLearners = learnersList != null && learnersList.isNotEmpty
+        ? learnersList
+        : [
+            ApplicationLearner(
+              id: 'app_lrn_${DateTime.now().millisecondsSinceEpoch}',
+              learnerName: learnerName ?? 'Learner',
+              learnerSurname: learnerSurname ?? primaryParentSurname,
+              learnerIdNumber: learnerIdNumber ?? '0801015000088',
+              learnerGender: learnerGender,
+              learnerDob: learnerDob,
+              learnerAge: learnerAge,
+              gradeApplyingFor: gradeApplyingFor ?? 'Grade 8',
+              homeLanguage: homeLanguage ?? 'English',
+              firstAdditionalLanguage: firstAdditionalLanguage ?? 'Afrikaans',
+              stream: stream,
+              previousSchool: previousSchool ?? 'Not Specified',
+              documentName: 'Learner_ID_Document.pdf',
+              documentVerified: documentVerified,
+            )
+          ];
 
     final application = AdmissionApplication(
       id: 'adm_${DateTime.now().millisecondsSinceEpoch}',
@@ -161,6 +186,7 @@ class MockDatabase extends ChangeNotifier {
       primaryParentIdNumber: primaryParentIdNumber,
       primaryParentGender: primaryParentGender,
       primaryParentDob: primaryParentDob,
+      primaryParentDocumentName: primaryParentDocumentName,
       hasSecondaryParent: hasSecondaryParent,
       secondaryParentName: secondaryParentName,
       secondaryParentSurname: secondaryParentSurname,
@@ -169,18 +195,8 @@ class MockDatabase extends ChangeNotifier {
       secondaryParentIdNumber: secondaryParentIdNumber,
       secondaryParentGender: secondaryParentGender,
       secondaryParentDob: secondaryParentDob,
-      learnerName: learnerName,
-      learnerSurname: learnerSurname,
-      learnerIdNumber: learnerIdNumber,
-      learnerGender: learnerGender,
-      learnerDob: learnerDob,
-      learnerAge: learnerAge,
-      gradeApplyingFor: gradeApplyingFor,
-      homeLanguage: homeLanguage,
-      firstAdditionalLanguage: firstAdditionalLanguage ?? 'English',
-      stream: stream,
-      previousSchool: previousSchool,
-      documentVerified: documentVerified,
+      secondaryParentDocumentName: secondaryParentDocumentName,
+      learners: effectiveLearners,
       status: ApplicationStatus.submitted,
       registrationToken: token,
       submittedAt: DateTime.now(),
@@ -198,7 +214,7 @@ class MockDatabase extends ChangeNotifier {
         action: 'ADMISSION_SUBMITTED',
         entity: 'Application: $appNumber',
         timestamp: DateTime.now(),
-        details: 'Submitted admission for $learnerName $learnerSurname ($gradeApplyingFor • $homeLanguage${stream != null ? " • $stream" : ""})',
+        details: 'Submitted admission for ${effectiveLearners.length} learner(s) (${effectiveLearners.map((l) => "${l.learnerName} - ${l.gradeApplyingFor}").join(", ")})',
       ),
     );
 
@@ -215,6 +231,8 @@ class MockDatabase extends ChangeNotifier {
     app.reviewedAt = DateTime.now();
     app.reviewerNotes = notes ?? 'Application meets all school admission and CAPS criteria.';
 
+    final learnersSummary = app.learners.map((l) => '• **${l.learnerName} ${l.learnerSurname}** for **${l.gradeApplyingFor}** (${l.homeLanguage}${l.stream != null ? " - ${l.stream}" : ""})').join('\n');
+
     // Send Simulated Email to Primary Parent with Registration Link and Token
     simulatedEmails.insert(
       0,
@@ -227,13 +245,15 @@ class MockDatabase extends ChangeNotifier {
         body: '''
 Dear ${app.primaryParentName} ${app.primaryParentSurname},
 
-Congratulations! We are pleased to inform you that the admission application for your child, **${app.learnerName} ${app.learnerSurname}** for **${app.gradeApplyingFor}** (Home Language: ${app.homeLanguage}${app.stream != null ? ", Stream: ${app.stream}" : ""}), has been **APPROVED**.
+Congratulations! We are pleased to inform you that the admission application for your ${app.learners.length > 1 ? "${app.learners.length} children" : "child"} has been **APPROVED**:
+
+$learnersSummary
 
 ### Your Official Registration Token:
 **${app.registrationToken}**
 
 ### Registration Link:
-Please click **"Complete Registration"** in the ThutoTech app and enter your registration token **${app.registrationToken}** to activate parent credentials and generate the official learner student number and login password.
+Please click **"Complete Registration"** in the ThutoTech app and enter your registration token **${app.registrationToken}** to activate parent credentials and generate the official learner student numbers and login passwords for each child.
 
 ${app.hasSecondaryParent ? "Note: You specified a secondary parent (${app.secondaryParentName} ${app.secondaryParentSurname}) who will also be authorized." : ""}
 
@@ -255,7 +275,7 @@ LEARN • CONNECT • EMPOWER
         action: 'ADMISSION_APPROVED',
         entity: 'Application: ${app.applicationNumber}',
         timestamp: DateTime.now(),
-        details: 'Approved admission for ${app.learnerName} ${app.learnerSurname} and sent registration token to ${app.primaryParentEmail}',
+        details: 'Approved admission for ${app.learners.length} learner(s) and sent registration token to ${app.primaryParentEmail}',
       ),
     );
 
@@ -279,7 +299,7 @@ LEARN • CONNECT • EMPOWER
         recipientName: '${app.primaryParentName} ${app.primaryParentSurname}',
         subject: 'Admission Application Status Update (${app.applicationNumber})',
         sentAt: DateTime.now(),
-        body: 'Dear ${app.primaryParentName},\n\nThank you for applying to ThutoTech. Unfortunately, placement is unavailable at this time.',
+        body: 'Dear ${app.primaryParentName},\n\nThank you for applying to ThutoTech. Unfortunately, placement is unavailable at this time.\nReason: ${app.reviewerNotes}',
       ),
     );
 
@@ -294,29 +314,19 @@ LEARN • CONNECT • EMPOWER
     required String parentSurname,
     required String parentEmail,
     required String parentPassword,
-    required String learnerName,
-    required String learnerSurname,
-    required String learnerIdNumber,
+    List<Map<String, String>>? registeredLearners,
+    // Backwards compatibility
+    String? learnerName,
+    String? learnerSurname,
+    String? learnerIdNumber,
   }) {
     final matchingAdm = admissions.firstWhere(
       (a) => a.registrationToken.trim() == registrationToken.trim() && a.status == ApplicationStatus.approved,
       orElse: () => throw Exception('Invalid or unapproved Registration Token. Please check your token or wait for admission approval.'),
     );
 
-    // 1. Generate Learner Number (e.g. 20260001)
-    final learnerNumber = SAIdParser.generateLearnerNumber(_learnerSequence++);
-    final learnerEmail = '$learnerNumber@thutotech.co.za';
-
-    // 2. Generate Systematic Learner Password (Thuto@ + digits at indices 0, 3, 6, 9, 12)
-    final generatedLearnerPassword = SAIdParser.generateLearnerPassword(learnerIdNumber);
-
     final parentUserId = 'usr_par_${DateTime.now().millisecondsSinceEpoch}';
-    final learnerUserId = 'usr_lrn_${DateTime.now().millisecondsSinceEpoch}';
     final parentId = 'par_${DateTime.now().millisecondsSinceEpoch}';
-    final learnerId = 'lrn_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Parse Learner ID for DOB/Age/Gender
-    final learnerIdInfo = SAIdParser.parse(learnerIdNumber);
 
     // Create Parent User
     final newParentUser = User(
@@ -330,41 +340,88 @@ LEARN • CONNECT • EMPOWER
       schoolId: 'sch_thutotech',
     );
 
-    // Create Learner User
-    final newLearnerUser = User(
-      id: learnerUserId,
-      email: learnerEmail,
-      name: learnerName,
-      surname: learnerSurname,
-      role: UserRole.learner,
-      phone: '',
-      avatarUrl: '',
-      schoolId: 'sch_thutotech',
-    );
+    final List<String> createdLearnerIds = [];
+    final List<Map<String, String>> createdLearnerCreds = [];
 
-    // Create Learner Entity
-    final newLearner = Learner(
-      id: learnerId,
-      userId: learnerUserId,
-      learnerNumber: learnerNumber,
-      idNumber: learnerIdNumber,
-      fullName: learnerName,
-      surname: learnerSurname,
-      gender: learnerIdInfo.gender ?? matchingAdm.learnerGender,
-      dateOfBirth: learnerIdInfo.dateOfBirth ?? matchingAdm.learnerDob,
-      age: learnerIdInfo.age ?? matchingAdm.learnerAge,
-      grade: matchingAdm.gradeApplyingFor,
-      className: '${matchingAdm.gradeApplyingFor}A',
-      homeLanguage: matchingAdm.homeLanguage,
-      firstAdditionalLanguage: matchingAdm.firstAdditionalLanguage,
-      stream: matchingAdm.stream,
-      schoolId: 'sch_thutotech',
-      parentId: parentId,
-      attendancePercentage: 100.0,
-      overallAverage: 0.0,
-    );
+    // Learners to process
+    final learnersInput = registeredLearners != null && registeredLearners.isNotEmpty
+        ? registeredLearners
+        : [
+            {
+              'learnerName': learnerName ?? matchingAdm.learners.first.learnerName,
+              'learnerSurname': learnerSurname ?? matchingAdm.learners.first.learnerSurname,
+              'learnerIdNumber': learnerIdNumber ?? matchingAdm.learners.first.learnerIdNumber,
+            }
+          ];
 
-    // Create Parent Entity
+    for (final lData in learnersInput) {
+      final lName = lData['learnerName']!;
+      final lSurname = lData['learnerSurname']!;
+      final lIdNum = lData['learnerIdNumber']!;
+
+      final learnerNumber = SAIdParser.generateLearnerNumber(_learnerSequence++);
+      final learnerEmail = '$learnerNumber@thutotech.co.za';
+      final generatedLearnerPassword = SAIdParser.generateLearnerPassword(lIdNum);
+      final learnerUserId = 'usr_lrn_${DateTime.now().millisecondsSinceEpoch}_${createdLearnerIds.length}';
+      final learnerId = 'lrn_${DateTime.now().millisecondsSinceEpoch}_${createdLearnerIds.length}';
+
+      final learnerIdInfo = SAIdParser.parse(lIdNum);
+      final appLearner = matchingAdm.learners.firstWhere(
+        (al) => al.learnerIdNumber == lIdNum,
+        orElse: () => matchingAdm.learners.first,
+      );
+
+      final newLearnerUser = User(
+        id: learnerUserId,
+        email: learnerEmail,
+        name: lName,
+        surname: lSurname,
+        role: UserRole.learner,
+        phone: '',
+        avatarUrl: '',
+        schoolId: 'sch_thutotech',
+      );
+
+      final newLearner = Learner(
+        id: learnerId,
+        userId: learnerUserId,
+        learnerNumber: learnerNumber,
+        idNumber: lIdNum,
+        fullName: lName,
+        surname: lSurname,
+        gender: learnerIdInfo.gender ?? appLearner.learnerGender,
+        dateOfBirth: learnerIdInfo.dateOfBirth ?? appLearner.learnerDob,
+        age: learnerIdInfo.age ?? appLearner.learnerAge,
+        grade: appLearner.gradeApplyingFor,
+        className: '${appLearner.gradeApplyingFor}A',
+        homeLanguage: appLearner.homeLanguage,
+        firstAdditionalLanguage: appLearner.firstAdditionalLanguage,
+        stream: appLearner.stream,
+        schoolId: 'sch_thutotech',
+        parentId: parentId,
+        attendancePercentage: 100.0,
+        overallAverage: 0.0,
+      );
+
+      users.add(newLearnerUser);
+      learners.add(newLearner);
+      createdLearnerIds.add(learnerId);
+
+      createdLearnerCreds.add({
+        'learnerName': lName,
+        'learnerSurname': lSurname,
+        'learnerNumber': learnerNumber,
+        'learnerEmail': learnerEmail,
+        'generatedPassword': generatedLearnerPassword,
+      });
+
+      final matchingClass = classes.firstWhere(
+        (c) => c.grade == appLearner.gradeApplyingFor,
+        orElse: () => classes.first,
+      );
+      matchingClass.learnerIds.add(learnerId);
+    }
+
     final newParent = Parent(
       id: parentId,
       userId: parentUserId,
@@ -377,24 +434,21 @@ LEARN • CONNECT • EMPOWER
       secondaryParentSurname: matchingAdm.secondaryParentSurname,
       secondaryParentPhone: matchingAdm.secondaryParentPhone,
       secondaryParentEmail: matchingAdm.secondaryParentEmail,
-      linkedLearnerIds: [learnerId],
+      linkedLearnerIds: createdLearnerIds,
     );
 
-    users.addAll([newParentUser, newLearnerUser]);
+    users.add(newParentUser);
     parents.add(newParent);
-    learners.add(newLearner);
-
-    // Assign to Class
-    final matchingClass = classes.firstWhere(
-      (c) => c.grade == matchingAdm.gradeApplyingFor,
-      orElse: () => classes.first,
-    );
-    matchingClass.learnerIds.add(learnerId);
-
-    // Set current active user to new parent
     currentUser = newParentUser;
 
-    // Send Welcome Email with Generated Learner Credentials
+    final credentialsSummary = createdLearnerCreds.map((c) => '''
+- **Learner:** ${c['learnerName']} ${c['learnerSurname']}
+  - **Student Number:** `${c['learnerNumber']}`
+  - **Login Email:** `${c['learnerEmail']}`
+  - **Password:** `${c['generatedPassword']}`
+''').join('\n');
+
+    // Send Welcome Email with all generated credentials
     simulatedEmails.insert(
       0,
       SimulatedEmail(
@@ -406,18 +460,14 @@ LEARN • CONNECT • EMPOWER
         body: '''
 Dear $parentName $parentSurname,
 
-Congratulations! Your registration for **$learnerName $learnerSurname** is now complete and active in the ThutoTech system.
+Congratulations! Your registration for your child(ren) has been successfully activated in the ThutoTech system.
 
 ### Learner Official Login Credentials:
-- **Learner Student Number:** `$learnerNumber`
-- **Learner Login Email:** `$learnerEmail`
-- **Generated Password:** `$generatedLearnerPassword`
+$credentialsSummary
 
 ### Parent Portal Access:
 - **Parent Login Email:** `$parentEmail`
 - **Parent Password:** *(The password you created during registration)*
-
-$learnerName can now log into the Learner Portal using their email `$learnerEmail` and the password `$generatedLearnerPassword` to view their timetable, subjects, and assignments.
 
 Warm regards,
 **Admissions & Records Office**
@@ -427,7 +477,6 @@ LEARN • CONNECT • EMPOWER
       ),
     );
 
-    // Audit Log
     auditLogs.insert(
       0,
       AuditLog(
@@ -436,17 +485,19 @@ LEARN • CONNECT • EMPOWER
         userName: '$parentName $parentSurname',
         role: 'PARENT',
         action: 'REGISTRATION_COMPLETED',
-        entity: 'Learner: $learnerNumber ($learnerName $learnerSurname)',
+        entity: 'Learners (${createdLearnerCreds.length})',
         timestamp: DateTime.now(),
-        details: 'Registered parent and dispatched learner credentials ($learnerNumber, password generated systematically) to $parentEmail',
+        details: 'Registered parent and dispatched credentials for ${createdLearnerCreds.length} learner(s) to $parentEmail',
       ),
     );
 
     notifyListeners();
     return {
-      'learnerNumber': learnerNumber,
-      'learnerEmail': learnerEmail,
-      'generatedPassword': generatedLearnerPassword,
+      'parentEmail': parentEmail,
+      'learners': createdLearnerCreds,
+      'learnerNumber': createdLearnerCreds.first['learnerNumber'],
+      'learnerEmail': createdLearnerCreds.first['learnerEmail'],
+      'generatedPassword': createdLearnerCreds.first['generatedPassword'],
     };
   }
 

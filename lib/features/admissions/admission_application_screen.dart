@@ -8,6 +8,27 @@ import '../../core/validation/input_validators.dart';
 import '../../data/mock_database.dart';
 import '../../models/models.dart';
 
+class _LearnerFormEntry {
+  final TextEditingController nameCtrl = TextEditingController();
+  final TextEditingController surnameCtrl = TextEditingController();
+  final TextEditingController idCtrl = TextEditingController();
+  final TextEditingController prevSchoolCtrl = TextEditingController();
+  SAIdInfo? idInfo;
+  String selectedGrade = 'Grade 8';
+  String selectedHomeLang = 'English';
+  String selectedFal = 'Afrikaans';
+  String selectedStream = CapsCurriculum.fetStreams.first;
+  String documentName = 'Learner_ID_Copy.pdf';
+  AiVerificationResult? aiResult;
+
+  void dispose() {
+    nameCtrl.dispose();
+    surnameCtrl.dispose();
+    idCtrl.dispose();
+    prevSchoolCtrl.dispose();
+  }
+}
+
 class AdmissionApplicationScreen extends StatefulWidget {
   final MockDatabase db;
 
@@ -27,6 +48,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   final _primaryPhoneCtrl = TextEditingController();
   final _primaryEmailCtrl = TextEditingController();
   SAIdInfo? _primaryIdInfo;
+  String _parentDocName = 'Primary_Parent_SA_ID.pdf';
 
   // SECONDARY PARENT (OPTIONAL)
   bool _hasSecondaryParent = false;
@@ -36,34 +58,23 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   final _secPhoneCtrl = TextEditingController();
   final _secEmailCtrl = TextEditingController();
   SAIdInfo? _secIdInfo;
+  String _secParentDocName = 'Secondary_Parent_ID.pdf';
 
-  // STEP 2: LEARNER DETAILS & CAPS CURRICULUM
-  final _learnerNameCtrl = TextEditingController();
-  final _learnerSurnameCtrl = TextEditingController();
-  final _learnerIdCtrl = TextEditingController();
-  final _prevSchoolCtrl = TextEditingController();
-  SAIdInfo? _learnerIdInfo;
-
-  String _selectedGrade = 'Grade 8';
-  String _selectedHomeLang = 'English';
-  String _selectedFal = 'Afrikaans';
-  String _selectedStream = CapsCurriculum.fetStreams.first;
-
+  // STEP 2: MULTI-LEARNERS LIST
+  final List<_LearnerFormEntry> _learners = [];
   final List<String> _grades = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
 
-  // STEP 3: AI OCR & DOCUMENT VERIFICATION
-  String _parentDocName = 'Primary_Parent_SA_ID_Copy.pdf';
-  String _learnerDocName = 'Learner_Birth_Cert_or_ID.pdf';
-  String? _secParentDocName;
-
+  // STEP 3: AI OCR & MULTI-DOCUMENT VERIFICATION
   bool _isOcrScanning = false;
   AiVerificationResult? _parentAiResult;
-  AiVerificationResult? _learnerAiResult;
-  bool _simulateMismatch = false;
+  AiVerificationResult? _secParentAiResult;
 
   @override
   void initState() {
     super.initState();
+    // Start with 1 default learner
+    _addNewLearner();
+
     _primaryIdCtrl.addListener(() {
       if (_primaryIdCtrl.text.length == 13) {
         setState(() {
@@ -79,14 +90,30 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         });
       }
     });
+  }
 
-    _learnerIdCtrl.addListener(() {
-      if (_learnerIdCtrl.text.length == 13) {
+  void _addNewLearner() {
+    final newEntry = _LearnerFormEntry();
+    newEntry.idCtrl.addListener(() {
+      if (newEntry.idCtrl.text.length == 13) {
         setState(() {
-          _learnerIdInfo = SAIdParser.parse(_learnerIdCtrl.text);
+          newEntry.idInfo = SAIdParser.parse(newEntry.idCtrl.text);
         });
       }
     });
+    setState(() {
+      newEntry.documentName = 'Learner_${_learners.length + 1}_ID_Copy.pdf';
+      _learners.add(newEntry);
+    });
+  }
+
+  void _removeLearner(int index) {
+    if (_learners.length > 1) {
+      setState(() {
+        _learners[index].dispose();
+        _learners.removeAt(index);
+      });
+    }
   }
 
   @override
@@ -103,56 +130,76 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
     _secPhoneCtrl.dispose();
     _secEmailCtrl.dispose();
 
-    _learnerNameCtrl.dispose();
-    _learnerSurnameCtrl.dispose();
-    _learnerIdCtrl.dispose();
-    _prevSchoolCtrl.dispose();
+    for (final l in _learners) {
+      l.dispose();
+    }
     super.dispose();
   }
-
-  bool get _isFetPhase => _selectedGrade == 'Grade 10' || _selectedGrade == 'Grade 11' || _selectedGrade == 'Grade 12';
 
   Future<void> _runAiDeepDocumentVerification() async {
     setState(() {
       _isOcrScanning = true;
       _parentAiResult = null;
-      _learnerAiResult = null;
+      _secParentAiResult = null;
+      for (final l in _learners) {
+        l.aiResult = null;
+      }
     });
 
-    // 1. Verify Parent Document
+    // 1. Verify Primary Parent
     final parentRes = await AiDocumentVerifier.verifyDocument(
       formFullName: _primaryNameCtrl.text,
       formSurname: _primarySurnameCtrl.text,
       formIdNumber: _primaryIdCtrl.text,
       formGender: _primaryIdInfo?.gender,
       fileName: _parentDocName,
-      simulateMismatch: _simulateMismatch,
     );
 
-    // 2. Verify Learner Document
-    final learnerRes = await AiDocumentVerifier.verifyDocument(
-      formFullName: _learnerNameCtrl.text,
-      formSurname: _learnerSurnameCtrl.text,
-      formIdNumber: _learnerIdCtrl.text,
-      formGender: _learnerIdInfo?.gender,
-      fileName: _learnerDocName,
-      simulateMismatch: _simulateMismatch,
-    );
+    // 2. Verify Secondary Parent if present
+    AiVerificationResult? secParentRes;
+    if (_hasSecondaryParent && _secIdCtrl.text.length == 13) {
+      secParentRes = await AiDocumentVerifier.verifyDocument(
+        formFullName: _secNameCtrl.text,
+        formSurname: _secSurnameCtrl.text,
+        formIdNumber: _secIdCtrl.text,
+        formGender: _secIdInfo?.gender,
+        fileName: _secParentDocName,
+      );
+    }
+
+    // 3. Verify All Learners
+    final List<AiVerificationResult> learnerResults = [];
+    for (final l in _learners) {
+      final lRes = await AiDocumentVerifier.verifyDocument(
+        formFullName: l.nameCtrl.text,
+        formSurname: l.surnameCtrl.text,
+        formIdNumber: l.idCtrl.text,
+        formGender: l.idInfo?.gender,
+        fileName: l.documentName,
+      );
+      l.aiResult = lRes;
+      learnerResults.add(lRes);
+    }
 
     if (!mounted) return;
 
     setState(() {
       _isOcrScanning = false;
       _parentAiResult = parentRes;
-      _learnerAiResult = learnerRes;
+      _secParentAiResult = secParentRes;
     });
 
-    final isOverallApproved = parentRes.decision == 'ACCEPTED' && learnerRes.decision == 'ACCEPTED';
+    final allLearnersPassed = learnerResults.every((r) => r.decision == 'ACCEPTED');
+    final isOverallApproved = parentRes.decision == 'ACCEPTED' &&
+        (_secParentAiResult == null || _secParentAiResult!.decision == 'ACCEPTED') &&
+        allLearnersPassed;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          isOverallApproved ? 'AI Verification Passed: Both ID documents authenticated and matched!' : 'AI Alert: Discrepancy detected during cross-inspection.',
+          isOverallApproved
+              ? 'AI Verification Passed: All ${learnerResults.length} learner(s) and parent ID documents verified!'
+              : 'AI Alert: Discrepancy detected during cross-inspection.',
           style: GoogleFonts.outfit(),
         ),
         backgroundColor: isOverallApproved ? AppTheme.primaryGreen : AppTheme.dangerRed,
@@ -161,7 +208,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
   }
 
   void _submitFinalApplication() {
-    if (_parentAiResult == null || _learnerAiResult == null) {
+    if (_parentAiResult == null || _learners.any((l) => l.aiResult == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please run the AI Document Verification before submitting.', style: GoogleFonts.outfit()),
@@ -171,7 +218,28 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       return;
     }
 
-    final isAiApproved = _parentAiResult!.decision == 'ACCEPTED' && _learnerAiResult!.decision == 'ACCEPTED';
+    final allLearnersPassed = _learners.every((l) => l.aiResult?.decision == 'ACCEPTED');
+    final isAiApproved = _parentAiResult!.decision == 'ACCEPTED' && allLearnersPassed;
+
+    final applicationLearnersList = _learners.map((l) {
+      final isFet = l.selectedGrade == 'Grade 10' || l.selectedGrade == 'Grade 11' || l.selectedGrade == 'Grade 12';
+      return ApplicationLearner(
+        id: 'lrn_app_${DateTime.now().millisecondsSinceEpoch}_${_learners.indexOf(l)}',
+        learnerName: l.nameCtrl.text.trim(),
+        learnerSurname: l.surnameCtrl.text.trim(),
+        learnerIdNumber: l.idCtrl.text.trim(),
+        learnerGender: l.idInfo?.gender,
+        learnerDob: l.idInfo?.dateOfBirth,
+        learnerAge: l.idInfo?.age,
+        gradeApplyingFor: l.selectedGrade,
+        homeLanguage: l.selectedHomeLang,
+        firstAdditionalLanguage: l.selectedFal,
+        stream: isFet ? l.selectedStream : null,
+        previousSchool: l.prevSchoolCtrl.text.trim().isEmpty ? 'Not Specified' : l.prevSchoolCtrl.text.trim(),
+        documentName: l.documentName,
+        documentVerified: isAiApproved,
+      );
+    }).toList();
 
     final application = widget.db.submitAdmissionApplication(
       primaryParentName: _primaryNameCtrl.text.trim(),
@@ -181,6 +249,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       primaryParentIdNumber: _primaryIdCtrl.text.trim(),
       primaryParentGender: _primaryIdInfo?.gender,
       primaryParentDob: _primaryIdInfo?.dateOfBirth,
+      primaryParentDocumentName: _parentDocName,
       hasSecondaryParent: _hasSecondaryParent,
       secondaryParentName: _hasSecondaryParent ? _secNameCtrl.text.trim() : null,
       secondaryParentSurname: _hasSecondaryParent ? _secSurnameCtrl.text.trim() : null,
@@ -189,17 +258,8 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
       secondaryParentIdNumber: _hasSecondaryParent ? _secIdCtrl.text.trim() : null,
       secondaryParentGender: _secIdInfo?.gender,
       secondaryParentDob: _secIdInfo?.dateOfBirth,
-      learnerName: _learnerNameCtrl.text.trim(),
-      learnerSurname: _learnerSurnameCtrl.text.trim(),
-      learnerIdNumber: _learnerIdCtrl.text.trim(),
-      learnerGender: _learnerIdInfo?.gender,
-      learnerDob: _learnerIdInfo?.dateOfBirth,
-      learnerAge: _learnerIdInfo?.age,
-      gradeApplyingFor: _selectedGrade,
-      homeLanguage: _selectedHomeLang,
-      firstAdditionalLanguage: _selectedFal,
-      stream: _isFetPhase ? _selectedStream : null,
-      previousSchool: _prevSchoolCtrl.text.trim().isEmpty ? 'Not Specified' : _prevSchoolCtrl.text.trim(),
+      secondaryParentDocumentName: _hasSecondaryParent ? _secParentDocName : null,
+      learnersList: applicationLearnersList,
       documentVerified: isAiApproved,
     );
 
@@ -225,53 +285,62 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isAiApproved ? 'Application & Verification Accepted!' : 'Application Rejected by AI Verification',
+                isAiApproved ? 'Admission & ID Verification Accepted!' : 'Application Rejected by AI Verification',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isAiApproved
-                  ? 'Your admission application and South African ID documents have been verified.'
-                  : 'Your application could not be verified against the official South African National ID register.',
-              style: GoogleFonts.outfit(fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: (isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: (isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed).withOpacity(0.3)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isAiApproved
+                    ? 'Your admission application for ${application.learners.length} learner(s) and South African ID documents have been verified.'
+                    : 'Your application could not be verified against the official South African National ID register.',
+                style: GoogleFonts.outfit(fontSize: 13),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Application Ref: ${application.applicationNumber}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text('Learner: ${application.learnerName} ${application.learnerSurname} (ID: ${application.learnerIdNumber})', style: GoogleFonts.outfit(fontSize: 12)),
-                  Text('Placement: ${application.gradeApplyingFor} • ${application.homeLanguage}${application.stream != null ? " (${application.stream})" : ""}', style: GoogleFonts.outfit(fontSize: 12)),
-                  const SizedBox(height: 6),
-                  Text(
-                    'AI Match Confidence: ${_learnerAiResult?.overallConfidence.toStringAsFixed(1)}%',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed, fontSize: 12),
-                  ),
-                ],
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: (isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: (isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed).withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Application Ref: ${application.applicationNumber}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 6),
+                    Text('Applying for ${application.learners.length} Child(ren):', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ...application.learners.map((l) => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '• ${l.learnerName} ${l.learnerSurname} (${l.gradeApplyingFor} - ${l.homeLanguage}${l.stream != null ? " • ${l.stream}" : ""})',
+                            style: GoogleFonts.outfit(fontSize: 12),
+                          ),
+                        )),
+                    const SizedBox(height: 8),
+                    Text(
+                      'AI Match Status: ${isAiApproved ? "100% Validated (SA Biometric Match)" : "Discrepancy Detected"}',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isAiApproved ? AppTheme.primaryGreen : AppTheme.dangerRed, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              isAiApproved
-                  ? '✉️ An official ADMISSION ACCEPTANCE EMAIL with your registration token (${application.registrationToken}) has been dispatched to ${_primaryEmailCtrl.text}.'
-                  : '✉️ An automated REJECTION NOTICE with details regarding the document mismatch has been sent to ${_primaryEmailCtrl.text}.',
-              style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.secondaryNavy, height: 1.4),
-            ),
-          ],
+              const SizedBox(height: 14),
+              Text(
+                isAiApproved
+                    ? '✉️ An official ADMISSION ACCEPTANCE EMAIL with your registration token (${application.registrationToken}) for all ${application.learners.length} child(ren) has been dispatched to ${_primaryEmailCtrl.text}.'
+                    : '✉️ An automated REJECTION NOTICE with details regarding the document mismatch has been sent to ${_primaryEmailCtrl.text}.',
+                style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.secondaryNavy, height: 1.4),
+              ),
+            ],
+          ),
         ),
         actions: [
           ElevatedButton(
@@ -297,7 +366,11 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
         currentStep: _currentStep,
         onStepContinue: () {
           if (_currentStep == 0) {
-            if (_primaryNameCtrl.text.isEmpty || _primarySurnameCtrl.text.isEmpty || _primaryIdCtrl.text.length != 13 || _primaryPhoneCtrl.text.isEmpty || _primaryEmailCtrl.text.isEmpty) {
+            if (_primaryNameCtrl.text.isEmpty ||
+                _primarySurnameCtrl.text.isEmpty ||
+                _primaryIdCtrl.text.length != 13 ||
+                _primaryPhoneCtrl.text.isEmpty ||
+                _primaryEmailCtrl.text.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Please complete all primary parent fields.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
               );
@@ -305,9 +378,10 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
             }
             setState(() => _currentStep = 1);
           } else if (_currentStep == 1) {
-            if (_learnerNameCtrl.text.isEmpty || _learnerSurnameCtrl.text.isEmpty || _learnerIdCtrl.text.length != 13) {
+            final invalidLearner = _learners.any((l) => l.nameCtrl.text.isEmpty || l.surnameCtrl.text.isEmpty || l.idCtrl.text.length != 13);
+            if (invalidLearner) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Please complete all learner fields with valid 13-digit ID.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
+                SnackBar(content: Text('Please complete details for all learner(s) with valid 13-digit IDs.', style: GoogleFonts.outfit()), backgroundColor: AppTheme.dangerRed),
               );
               return;
             }
@@ -324,7 +398,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
           }
         },
         steps: [
-          // STEP 1: PARENT INFORMATION
+          // STEP 1: PARENT INFORMATION & DOCUMENT UPLOADS
           Step(
             title: const Text('Parent(s)'),
             isActive: _currentStep >= 0,
@@ -357,7 +431,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                   prefixIcon: Icons.credit_card_rounded,
                 ),
 
-                // Live Auto-Filled DOB & Gender Card from SA ID
+                // Auto-Extracted DOB & Gender
                 if (_primaryIdInfo != null && _primaryIdInfo!.isValid) ...[
                   Container(
                     margin: const EdgeInsets.only(bottom: 14),
@@ -377,6 +451,17 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                     ),
                   ),
                 ],
+
+                // Parent ID Upload Card
+                _buildUploadPicker(
+                  label: 'Upload Primary Parent SA ID Copy *',
+                  fileName: _parentDocName,
+                  icon: Icons.upload_file_rounded,
+                  onPick: () {
+                    setState(() => _parentDocName = 'Primary_Parent_ID_SmartCard.pdf');
+                  },
+                ),
+                const SizedBox(height: 12),
 
                 ValidatedTextField(
                   controller: _primaryPhoneCtrl,
@@ -429,7 +514,7 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                         ValidatedTextField(
                           controller: _secNameCtrl,
                           label: 'Secondary Parent First Name',
-                          hint: 'Letters only (e.g. Nomsa)',
+                          hint: 'Letters only',
                           dataType: InputDataType.textOnly,
                           isRequired: _hasSecondaryParent,
                           prefixIcon: Icons.person_outline,
@@ -437,35 +522,33 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                         ValidatedTextField(
                           controller: _secSurnameCtrl,
                           label: 'Secondary Parent Surname',
-                          hint: 'Letters only (e.g. Makola)',
+                          hint: 'Letters only',
                           dataType: InputDataType.textOnly,
                           isRequired: _hasSecondaryParent,
                           prefixIcon: Icons.badge_outlined,
                         ),
                         ValidatedTextField(
                           controller: _secIdCtrl,
-                          label: 'Secondary Parent 13-digit ID Number',
-                          hint: '13-digit National ID',
+                          label: 'Secondary Parent 13-digit ID',
+                          hint: '13 digits',
                           dataType: InputDataType.idNumber,
                           maxLength: 13,
                           isRequired: _hasSecondaryParent,
                           prefixIcon: Icons.credit_card_rounded,
                         ),
-                        if (_secIdInfo != null && _secIdInfo!.isValid) ...[
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(color: AppTheme.lightGreen, borderRadius: BorderRadius.circular(8)),
-                            child: Text(
-                              'Auto-Extracted: Born ${_secIdInfo!.formattedDob} • Gender: ${_secIdInfo!.gender}',
-                              style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-                            ),
-                          ),
-                        ],
+                        _buildUploadPicker(
+                          label: 'Upload Secondary Parent ID Copy',
+                          fileName: _secParentDocName,
+                          icon: Icons.upload_file_rounded,
+                          onPick: () {
+                            setState(() => _secParentDocName = 'Secondary_Parent_ID_SmartCard.pdf');
+                          },
+                        ),
+                        const SizedBox(height: 12),
                         ValidatedTextField(
                           controller: _secPhoneCtrl,
                           label: 'Secondary Parent Contact',
-                          hint: '10 digits (e.g. 0839876543)',
+                          hint: '10 digits',
                           dataType: InputDataType.phoneNumber,
                           maxLength: 10,
                           isRequired: _hasSecondaryParent,
@@ -487,206 +570,201 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
             ),
           ),
 
-          // STEP 2: LEARNER & CAPS CURRICULUM
+          // STEP 2: MULTI-LEARNERS LIST & CAPS CURRICULUM
           Step(
-            title: const Text('Learner & CAPS'),
+            title: Text('Learner(s) (${_learners.length})'),
             isActive: _currentStep >= 1,
             state: _currentStep > 1 ? StepState.complete : StepState.indexed,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildCardHeader('Learner Identification', Icons.child_care_rounded),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildCardHeader('Applying for ${_learners.length} Learner(s)', Icons.child_care_rounded),
+                    ElevatedButton.icon(
+                      onPressed: _addNewLearner,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add Child'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
-                ValidatedTextField(
-                  controller: _learnerNameCtrl,
-                  label: 'Learner First Name(s)',
-                  hint: 'Letters only (e.g. Thabo)',
-                  dataType: InputDataType.textOnly,
-                  prefixIcon: Icons.person_outline,
-                ),
-                ValidatedTextField(
-                  controller: _learnerSurnameCtrl,
-                  label: 'Learner Surname',
-                  hint: 'Letters only (e.g. Makola)',
-                  dataType: InputDataType.textOnly,
-                  prefixIcon: Icons.badge_outlined,
-                ),
-                ValidatedTextField(
-                  controller: _learnerIdCtrl,
-                  label: 'Learner 13-digit National ID Number',
-                  hint: '13 digits (Numbers only)',
-                  dataType: InputDataType.idNumber,
-                  maxLength: 13,
-                  prefixIcon: Icons.credit_card_rounded,
-                ),
 
-                // Real-Time Auto-Filled DOB, Age, Gender Card
-                if (_learnerIdInfo != null && _learnerIdInfo!.isValid) ...[
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 14),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: AppTheme.lightGreen, borderRadius: BorderRadius.circular(10)),
-                    child: Row(
+                // Render dynamic learner cards
+                ..._learners.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final l = entry.value;
+                  final isFet = l.selectedGrade == 'Grade 10' || l.selectedGrade == 'Grade 11' || l.selectedGrade == 'Grade 12';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.cardBorder),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.cake_rounded, color: AppTheme.primaryGreen, size: 22),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Auto-Filled Demographic Details from ID:', style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
-                              Text(
-                                'DOB: ${_learnerIdInfo!.formattedDob}  •  Age: ${_learnerIdInfo!.age} Years  •  Gender: ${_learnerIdInfo!.gender}',
-                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(color: AppTheme.primaryNavy.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+                              child: Text('Learner #${idx + 1}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, fontSize: 13)),
+                            ),
+                            if (_learners.length > 1)
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.dangerRed, size: 20),
+                                onPressed: () => _removeLearner(idx),
+                                tooltip: 'Remove this learner',
                               ),
-                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ValidatedTextField(
+                          controller: l.nameCtrl,
+                          label: 'Learner First Name(s)',
+                          hint: 'Letters only',
+                          dataType: InputDataType.textOnly,
+                          prefixIcon: Icons.person_outline,
+                        ),
+                        ValidatedTextField(
+                          controller: l.surnameCtrl,
+                          label: 'Learner Surname',
+                          hint: 'Letters only',
+                          dataType: InputDataType.textOnly,
+                          prefixIcon: Icons.badge_outlined,
+                        ),
+                        ValidatedTextField(
+                          controller: l.idCtrl,
+                          label: 'Learner 13-digit SA ID Number',
+                          hint: '13 digits',
+                          dataType: InputDataType.idNumber,
+                          maxLength: 13,
+                          prefixIcon: Icons.credit_card_rounded,
+                        ),
+
+                        // Auto-Filled Demographic Details
+                        if (l.idInfo != null && l.idInfo!.isValid) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppTheme.lightGreen, borderRadius: BorderRadius.circular(8)),
+                            child: Text(
+                              'Auto-Extracted: Born ${l.idInfo!.formattedDob} • Age: ${l.idInfo!.age} • Gender: ${l.idInfo!.gender}',
+                              style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                            ),
                           ),
+                        ],
+
+                        // Learner Document Upload Picker
+                        _buildUploadPicker(
+                          label: 'Upload Learner Birth Certificate / Smart ID *',
+                          fileName: l.documentName,
+                          icon: Icons.document_scanner_rounded,
+                          onPick: () {
+                            setState(() => l.documentName = 'Learner_${idx + 1}_SA_ID_BirthCert.pdf');
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Grade Selection
+                        Text('Grade Applying For *', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        DropdownButtonFormField<String>(
+                          value: l.selectedGrade,
+                          decoration: const InputDecoration(prefixIcon: Icon(Icons.stairs_rounded, color: AppTheme.secondaryNavy)),
+                          items: _grades.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => l.selectedGrade = val);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Home Language
+                        Text('Home Language *', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        DropdownButtonFormField<String>(
+                          value: l.selectedHomeLang,
+                          decoration: const InputDecoration(prefixIcon: Icon(Icons.language_rounded, color: AppTheme.secondaryNavy)),
+                          items: CapsCurriculum.officialLanguages.map((lang) => DropdownMenuItem(value: lang, child: Text(lang))).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => l.selectedHomeLang = val);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Stream selection if FET Phase
+                        if (isFet) ...[
+                          Text('FET Specialization Stream (CAPS) *', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                          const SizedBox(height: 4),
+                          DropdownButtonFormField<String>(
+                            value: l.selectedStream,
+                            decoration: const InputDecoration(prefixIcon: Icon(Icons.account_tree_rounded, color: AppTheme.primaryGreen)),
+                            items: CapsCurriculum.fetStreams.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                            onChanged: (val) {
+                              if (val != null) setState(() => l.selectedStream = val);
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        ValidatedTextField(
+                          controller: l.prevSchoolCtrl,
+                          label: 'Previous School Attended',
+                          hint: 'School name',
+                          prefixIcon: Icons.account_balance_outlined,
                         ),
                       ],
                     ),
-                  ),
-                ],
-
-                // Grade Selection
-                Text('Grade Applying For *', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _selectedGrade,
-                  decoration: const InputDecoration(prefixIcon: Icon(Icons.stairs_rounded, color: AppTheme.secondaryNavy)),
-                  items: _grades.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedGrade = val);
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Home Language (11 SA Languages)
-                Text('Home Language (First Assigned Subject) *', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _selectedHomeLang,
-                  decoration: const InputDecoration(prefixIcon: Icon(Icons.language_rounded, color: AppTheme.secondaryNavy)),
-                  items: CapsCurriculum.officialLanguages.map((lang) => DropdownMenuItem(value: lang, child: Text(lang))).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedHomeLang = val);
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // First Additional Language
-                Text('First Additional Language (FAL) *', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _selectedFal,
-                  decoration: const InputDecoration(prefixIcon: Icon(Icons.translate_rounded, color: AppTheme.secondaryNavy)),
-                  items: CapsCurriculum.officialLanguages.where((l) => l != _selectedHomeLang).map((lang) => DropdownMenuItem(value: lang, child: Text(lang))).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedFal = val);
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Stream selection if Grade 10, 11, or 12 (FET Phase)
-                if (_isFetPhase) ...[
-                  Text('FET Specialization Stream (DBE CAPS) *', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    value: _selectedStream,
-                    decoration: const InputDecoration(prefixIcon: Icon(Icons.account_tree_rounded, color: AppTheme.primaryGreen)),
-                    items: CapsCurriculum.fetStreams.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedStream = val);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Assigned CAPS FET Subjects for $_selectedStream:', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                        const SizedBox(height: 6),
-                        ...CapsCurriculum.getFetPhaseSubjects(
-                          homeLanguage: _selectedHomeLang,
-                          fal: _selectedFal,
-                          stream: _selectedStream,
-                        ).map((s) => Text('• $s', style: GoogleFonts.outfit(fontSize: 12, color: Colors.blue.shade900))),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(10)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Assigned Senior Phase (Grade 8-9) CAPS Subjects:', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                        const SizedBox(height: 6),
-                        ...CapsCurriculum.getSeniorPhaseSubjects(_selectedHomeLang, _selectedFal).map((s) => Text('• $s', style: GoogleFonts.outfit(fontSize: 12, color: Colors.green.shade900))),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
-                ValidatedTextField(
-                  controller: _prevSchoolCtrl,
-                  label: 'Previous School Attended',
-                  hint: 'e.g. Limpopo Primary School',
-                  prefixIcon: Icons.account_balance_outlined,
-                ),
+                  );
+                }),
               ],
             ),
           ),
 
-          // STEP 3: AI DOCUMENT OCR & CROSS-COMPARISON
+          // STEP 3: AI DOCUMENT CROSS-INSPECTION
           Step(
             title: const Text('AI ID Verification'),
             isActive: _currentStep >= 2,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildCardHeader('AI National ID Inspection & Cross-Match', Icons.document_scanner_rounded),
+                _buildCardHeader('AI National ID Inspection & Verification', Icons.verified_user_rounded),
                 const SizedBox(height: 6),
                 Text(
-                  'Our integrated AI model analyzes the uploaded South African ID copies, extracts biometric and demographic markers, and compares them against applicant form inputs.',
+                  'Our integrated AI model analyzes the uploaded South African ID copies for all parents and learners, checks authenticity against the Republic of South Africa standards, and cross-compares demographic data against form inputs.',
                   style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
                 ),
                 const SizedBox(height: 16),
 
-                // Uploaded Documents List
-                _buildUploadDocCard(
-                  title: 'Primary Parent ID Document',
-                  fileName: _parentDocName,
-                  icon: Icons.badge_outlined,
-                  onSelect: () {},
-                ),
-                const SizedBox(height: 10),
-
+                // Uploaded Documents Matrix
+                _buildUploadSummary('Primary Parent ID Document', _parentDocName, Icons.badge_outlined),
                 if (_hasSecondaryParent) ...[
-                  _buildUploadDocCard(
-                    title: 'Secondary Parent ID Document',
-                    fileName: _secParentDocName ?? 'Secondary_Parent_ID_Copy.pdf',
-                    icon: Icons.badge_outlined,
-                    onSelect: () {},
-                  ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+                  _buildUploadSummary('Secondary Parent ID Document', _secParentDocName, Icons.badge_outlined),
                 ],
-
-                _buildUploadDocCard(
-                  title: 'Learner Birth Certificate / Smart ID',
-                  fileName: _learnerDocName,
-                  icon: Icons.child_care_rounded,
-                  onSelect: () {},
-                ),
+                const SizedBox(height: 8),
+                ..._learners.asMap().entries.map((entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildUploadSummary('Learner #${entry.key + 1} (${entry.value.nameCtrl.text.isNotEmpty ? entry.value.nameCtrl.text : "Child"}) ID Copy', entry.value.documentName, Icons.child_care_rounded),
+                    )),
 
                 const SizedBox(height: 16),
 
                 // AI Cross-Inspection Action & Results
-                if (_parentAiResult == null && _learnerAiResult == null) ...[
+                if (_parentAiResult == null && _learners.every((l) => l.aiResult == null)) ...[
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -704,8 +782,8 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('AI Biometric & OCR Inspector Ready', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
-                                  Text('Click below to run deep cross-comparison between ID files and entered details.', style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted)),
+                                  Text('AI Multi-Document Inspector Ready', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Text('Click below to run deep cross-comparison on all uploaded parent and learner ID documents.', style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted)),
                                 ],
                               ),
                             ),
@@ -727,11 +805,22 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
                     ),
                   ),
                 ] else ...[
-                  // AI VERIFICATION REPORT CARD
-                  _buildAiReportCard('Primary Parent Verification Report', _parentAiResult!),
-                  const SizedBox(height: 12),
-                  _buildAiReportCard('Learner Verification Report', _learnerAiResult!),
-                  const SizedBox(height: 12),
+                  // AI VERIFICATION REPORT CARDS
+                  if (_parentAiResult != null) _buildAiReportCard('Primary Parent Verification Report', _parentAiResult!),
+                  if (_secParentAiResult != null) ...[
+                    const SizedBox(height: 12),
+                    _buildAiReportCard('Secondary Parent Verification Report', _secParentAiResult!),
+                  ],
+                  ..._learners.asMap().entries.map((e) {
+                    if (e.value.aiResult != null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: _buildAiReportCard('Learner #${e.key + 1} (${e.value.nameCtrl.text}) Verification Report', e.value.aiResult!),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                  const SizedBox(height: 14),
 
                   SizedBox(
                     width: double.infinity,
@@ -750,33 +839,63 @@ class _AdmissionApplicationScreenState extends State<AdmissionApplicationScreen>
     );
   }
 
-  Widget _buildUploadDocCard({required String title, required String fileName, required IconData icon, required VoidCallback onSelect}) {
+  Widget _buildUploadPicker({required String label, required String fileName, required IconData icon, required VoidCallback onPick}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.blueGrey.shade50.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppTheme.primaryNavy.withOpacity(0.06), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: AppTheme.primaryNavy, size: 22),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: AppTheme.primaryNavy, size: 24),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12)),
+                Text(fileName, style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            onPressed: onPick,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(60, 32),
+            ),
+            child: const Text('Browse', style: TextStyle(fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadSummary(String title, String fileName, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primaryNavy, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12)),
                 Text(fileName, style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(color: AppTheme.lightGreen, borderRadius: BorderRadius.circular(6)),
             child: Text('Attached ✓', style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
           ),

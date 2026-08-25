@@ -287,6 +287,7 @@ CREATE TABLE IF NOT EXISTS "admission_applications" (
     "primaryParentIdNumber" VARCHAR(13) NOT NULL,
     "primaryParentGender" VARCHAR(20),
     "primaryParentDob" DATE,
+    "primaryParentDocumentUrl" TEXT,
     -- Secondary Parent (Optional)
     "hasSecondaryParent" BOOLEAN DEFAULT FALSE,
     "secondaryParentName" VARCHAR(100),
@@ -296,7 +297,20 @@ CREATE TABLE IF NOT EXISTS "admission_applications" (
     "secondaryParentIdNumber" VARCHAR(13),
     "secondaryParentGender" VARCHAR(20),
     "secondaryParentDob" DATE,
-    -- Learner Details
+    "secondaryParentDocumentUrl" TEXT,
+    -- Status & Token
+    "status" "ApplicationStatus" DEFAULT 'SUBMITTED',
+    "registrationToken" VARCHAR(50) UNIQUE NOT NULL,
+    "reviewerNotes" TEXT,
+    "reviewedAt" TIMESTAMP WITH TIME ZONE,
+    "submittedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 19b. Application Learners Table (Multi-Child per Application)
+CREATE TABLE IF NOT EXISTS "application_learners" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    "applicationId" TEXT NOT NULL REFERENCES "admission_applications"("id") ON DELETE CASCADE,
     "learnerName" VARCHAR(100) NOT NULL,
     "learnerSurname" VARCHAR(100) NOT NULL,
     "learnerIdNumber" VARCHAR(13) NOT NULL,
@@ -308,14 +322,10 @@ CREATE TABLE IF NOT EXISTS "admission_applications" (
     "firstAdditionalLanguage" VARCHAR(50),
     "stream" VARCHAR(50), -- Science, Commerce, Tourism (if Grade 10-12)
     "previousSchool" VARCHAR(255) NOT NULL,
+    "documentUrl" TEXT,
+    "documentName" VARCHAR(255),
     "documentVerified" BOOLEAN DEFAULT FALSE,
-    -- Status
-    "status" "ApplicationStatus" DEFAULT 'SUBMITTED',
-    "registrationToken" VARCHAR(50) UNIQUE NOT NULL,
-    "reviewerNotes" TEXT,
-    "reviewedAt" TIMESTAMP WITH TIME ZONE,
-    "submittedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 20. Automation Rules Table
