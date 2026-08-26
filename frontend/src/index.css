@@ -58,18 +58,32 @@
   border-color: #1E2D42;
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: var(--font-body);
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -245,10 +259,9 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================================== */
 .app-watermark-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 0;
   display: flex;
@@ -257,7 +270,7 @@ h1, h2, h3, h4, h5, h6 {
   background-image: url('/images/app-icon-3d.jpg');
   background-repeat: no-repeat;
   background-position: center center;
-  background-size: min(460px, 65vw);
+  background-size: min(380px, 60%);
   opacity: 0.038;
   filter: grayscale(10%);
 }
