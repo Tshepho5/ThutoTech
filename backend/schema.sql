@@ -4,6 +4,9 @@
 -- CAPS Curriculum, Admissions, RBAC, Multi-Role Ecosystem & Event Automation
 -- ==============================================================================
 
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- 1. Create Enums
 DO $$ BEGIN
     CREATE TYPE "UserRole" AS ENUM ('LEARNER', 'PARENT', 'TEACHER', 'PRINCIPAL', 'ADMIN');
