@@ -1,0 +1,28 @@
+{
+  "appId": "com.thutotech.app",
+  "appName": "ThutoTech",
+  "webDir": "../backend/public",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://thutotech-2-0.onrender.com",
+    "cleartext": true,
+    "allowNavigation": [
+      "thutotech-2-0.onrender.com",
+      "*.onrender.com",
+      "localhost"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0B192C",
+      "showSpinner": true,
+      "spinnerColor": "#16C47F"
+    }
+  }
+}
