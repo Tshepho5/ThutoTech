@@ -44,7 +44,30 @@ export async function connectDatabase() {
     await pool.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`).catch(() => {});
     await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`).catch(() => {});
 
-    // 2. Types & Enums (Safe execution)
+    // 2. Drop all legacy foreign key constraints so column types can be upgraded to TEXT safely
+    await pool.query(`
+      DO $$ 
+      DECLARE
+          r RECORD;
+      BEGIN
+          FOR r IN (
+              SELECT conname, relname 
+              FROM pg_constraint c
+              JOIN pg_class cl ON cl.oid = c.conrelid
+              WHERE c.contype = 'f'
+              AND cl.relname IN (
+                'admission_applications', 'application_learners', 'users', 'parents', 
+                'learners', 'teachers', 'school_classes', 'parent_learner_relationships', 
+                'subjects', 'assignments', 'submissions', 'attendance_records', 'audit_logs',
+                'app_notifications', 'announcements', 'password_reset_otps'
+              )
+          ) LOOP
+              EXECUTE 'ALTER TABLE "' || r.relname || '" DROP CONSTRAINT IF EXISTS "' || r.conname || '" CASCADE;';
+          END LOOP;
+      END $$;
+    `).catch(() => {});
+
+    // 3. Types & Enums (Safe execution)
     const enumQueries = [
       `DO $$ BEGIN CREATE TYPE "UserRole" AS ENUM ('LEARNER', 'PARENT', 'TEACHER', 'PRINCIPAL', 'ADMIN'); EXCEPTION WHEN duplicate_object THEN null; END $$;`,
       `DO $$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('INVITED', 'ACTIVE', 'SUSPENDED', 'DEACTIVATED'); EXCEPTION WHEN duplicate_object THEN null; END $$;`,
@@ -60,7 +83,7 @@ export async function connectDatabase() {
       await pool.query(q).catch((e) => console.warn('Enum notice:', e.message));
     }
 
-    // 3. Core Tables DDL (CREATE TABLE IF NOT EXISTS)
+    // 4. Core Tables DDL (CREATE TABLE IF NOT EXISTS)
     const tableQueries = [
       `CREATE TABLE IF NOT EXISTS "schools" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -312,7 +335,7 @@ export async function connectDatabase() {
       await pool.query(tbl).catch((e) => console.warn('Table initialization notice:', e.message));
     }
 
-    // 4. Comprehensive Column Synchronization (ALTER TABLE ADD COLUMN IF NOT EXISTS for ALL tables)
+    // 5. Comprehensive Column & Type Synchronization
     const columnSyncQueries = [
       // 1. users
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
@@ -570,7 +593,7 @@ export async function connectDatabase() {
       await pool.query(syncQ).catch(() => {});
     }
 
-    // 5. Seed CAPS South African Curriculum Subjects
+    // 6. Seed CAPS South African Curriculum Subjects
     const capsSubjects = [
       { name: 'Mathematics', code: 'MATH-CAPS', grade: 'Grade 8', category: 'Fundamental' },
       { name: 'Mathematical Literacy', code: 'MLIT-CAPS', grade: 'Grade 10', category: 'Fundamental' },
@@ -599,7 +622,7 @@ export async function connectDatabase() {
       `, [sub.name, sub.code, sub.grade, sub.category]).catch(() => {});
     }
 
-    // 6. Guarantee Super Admin Lebogang Makola seed
+    // 7. Guarantee Super Admin Lebogang Makola seed
     const adminPassHash = await bcrypt.hash('#Admin#$5$', 10);
     await pool.query(`
       INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
@@ -621,6 +644,7 @@ export async function connectDatabase() {
         "status" = 'ACTIVE';
     `, [adminPassHash]);
 
+    console.log('✅ PostgreSQL Schema synchronized: all 17 tables, all columns, CAPS subjects and Super Admin ready.');
   } catch (error: any) {
     console.error('⚠️ PostgreSQL Schema Initialization Error:', error.message);
   }

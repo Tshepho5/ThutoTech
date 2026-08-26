@@ -9,6 +9,21 @@ async function ensureAdmissionTablesExist() {
   try {
     await query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
     await query(`
+      DO $$ 
+      DECLARE
+          r RECORD;
+      BEGIN
+          FOR r IN (
+              SELECT conname, relname 
+              FROM pg_constraint c
+              JOIN pg_class cl ON cl.oid = c.conrelid
+              WHERE c.contype = 'f'
+              AND cl.relname IN ('admission_applications', 'application_learners', 'users', 'parents', 'learners', 'parent_learner_relationships')
+          ) LOOP
+              EXECUTE 'ALTER TABLE "' || r.relname || '" DROP CONSTRAINT IF EXISTS "' || r.conname || '" CASCADE;';
+          END LOOP;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS "admission_applications" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
         "applicationNumber" VARCHAR(50) UNIQUE NOT NULL,
@@ -43,7 +58,7 @@ async function ensureAdmissionTablesExist() {
 
       CREATE TABLE IF NOT EXISTS "application_learners" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-        "applicationId" TEXT NOT NULL REFERENCES "admission_applications"("id") ON DELETE CASCADE,
+        "applicationId" TEXT NOT NULL,
         "learnerName" VARCHAR(100) NOT NULL,
         "learnerSurname" VARCHAR(100) NOT NULL,
         "learnerIdNumber" VARCHAR(13) NOT NULL,
