@@ -325,4 +325,94 @@ export class EmailService {
       return false;
     }
   }
+
+  /**
+   * Send Official Admission Application Received & Confirmation Email
+   */
+  static async sendApplicationSubmittedEmail(params: {
+    recipientEmail: string;
+    parentName: string;
+    parentSurname: string;
+    applicationNumber: string;
+    registrationToken: string;
+    learners: any[];
+  }): Promise<boolean> {
+    const { recipientEmail, parentName, parentSurname, applicationNumber, registrationToken, learners } = params;
+
+    const learnerListHtml = learners.map((l: any, idx: number) => `
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
+        <strong style="color: #0B192C;">Learner ${idx + 1}: ${l.learnerName || ''} ${l.learnerSurname || ''}</strong><br/>
+        <span style="font-size: 13px; color: #475569;">
+          • Grade: <strong>${l.gradeApplyingFor || 'Grade 8'}</strong> | Language: <strong>${l.homeLanguage || 'Sepedi'}</strong>
+          ${l.stream ? ` | Stream: <strong>${l.stream}</strong>` : ''}
+        </span>
+      </div>
+    `).join('');
+
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 16px; background-color: #ffffff;">
+        <div style="background-color: #0B192C; padding: 24px; border-radius: 12px; text-align: center; color: white;">
+          <h1 style="margin: 0; font-size: 24px; color: #16C47F; font-weight: 800;">ThutoTech Academy</h1>
+          <p style="margin: 6px 0 0 0; font-size: 12px; letter-spacing: 2px; color: #94A3B8;">LEARN • CONNECT • EMPOWER</p>
+        </div>
+
+        <div style="padding: 24px 4px;">
+          <div style="display: inline-block; background: #DCFCE7; color: #166534; font-weight: 700; font-size: 12px; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px;">
+            ✓ APPLICATION RECORDED IN CENTRAL DATABASE
+          </div>
+          <h2 style="color: #0B192C; margin-top: 0; font-size: 20px;">Admission Application Confirmation</h2>
+          
+          <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+            Dear <strong>${parentName} ${parentSurname}</strong>,
+          </p>
+          <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+            Thank you for applying to ThutoTech Academy for the 2026 Academic Year. Your application has been successfully received and submitted for automated AI document verification and review.
+          </p>
+
+          <div style="background-color: #0B192C; border-radius: 12px; padding: 20px; color: white; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 6px 0; font-size: 12px; color: #94A3B8; letter-spacing: 1px;">OFFICIAL ADMISSION REFERENCE:</p>
+            <div style="font-size: 26px; font-weight: 800; color: #16C47F; letter-spacing: 2px;">
+              ${applicationNumber}
+            </div>
+            <p style="margin: 8px 0 0 0; font-size: 13px; color: #CBD5E1;">
+              Registration Token: <strong>${registrationToken}</strong>
+            </p>
+          </div>
+
+          <h3 style="color: #0B192C; font-size: 15px; margin-bottom: 10px;">Enrolled Learner(s):</h3>
+          ${learnerListHtml}
+
+          <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+            <h4 style="margin: 0 0 8px 0; color: #166534; font-size: 14px;">🔐 Parent Portal Login Credentials Saved</h4>
+            <p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.5;">
+              Your Parent Portal account is now registered with email <strong>${recipientEmail}</strong>. You can sign in anytime using the password created during your application to track status and review academic progress.
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid #E2E8F0; padding-top: 16px; font-size: 12px; color: #64748B; text-align: center;">
+            <p style="margin: 0;">ThutoTech Admissions & Records Directorate • South Africa</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    try {
+      const transporter = await this.getTransporter();
+      const info = await transporter.sendMail({
+        from: `"ThutoTech Admissions" <${process.env.SMTP_FROM || 'admissions@thutotech.co.za'}>`,
+        to: recipientEmail,
+        subject: `Admission Application Confirmed - Reference: ${applicationNumber}`,
+        html: htmlContent,
+      });
+
+      console.log(`✉️ [EmailService] Application confirmation email sent to ${recipientEmail} (${applicationNumber})`);
+      if (nodemailer.getTestMessageUrl(info)) {
+        console.log(`🔗 [EmailService] Preview Email Online: ${nodemailer.getTestMessageUrl(info)}`);
+      }
+      return true;
+    } catch (error) {
+      console.error('⚠️ [EmailService] Failed to send application confirmation email:', error);
+      return false;
+    }
+  }
 }

@@ -383,9 +383,23 @@ export class AdmissionsController {
         }
       }
 
+      // 5. Dispatch Admission Application Confirmation Email
+      try {
+        await EmailService.sendApplicationSubmittedEmail({
+          recipientEmail: primaryParentEmail.toLowerCase().trim(),
+          parentName: primaryParentName.trim(),
+          parentSurname: primaryParentSurname.trim(),
+          applicationNumber,
+          registrationToken,
+          learners: rawLearners,
+        });
+      } catch (emailErr: any) {
+        console.warn('⚠️ Admission email dispatch warning:', emailErr.message);
+      }
+
       return res.status(201).json({
         success: true,
-        message: `Admission application submitted. Parent and ${rawLearners.length} child profile(s) linked.`,
+        message: `Admission application submitted. Confirmation email dispatched.`,
         application: {
           id: appId,
           applicationNumber,
