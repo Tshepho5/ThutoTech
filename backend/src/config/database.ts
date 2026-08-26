@@ -44,7 +44,7 @@ export async function connectDatabase() {
     await pool.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`).catch(() => {});
     await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`).catch(() => {});
 
-    // 2. Drop all legacy foreign key constraints so column types can be upgraded to TEXT safely
+    // 2. Drop all legacy foreign key constraints and force convert all ID columns to TEXT
     await pool.query(`
       DO $$ 
       DECLARE
@@ -54,16 +54,55 @@ export async function connectDatabase() {
               SELECT conname, relname 
               FROM pg_constraint c
               JOIN pg_class cl ON cl.oid = c.conrelid
-              WHERE c.contype = 'f'
-              AND cl.relname IN (
-                'admission_applications', 'application_learners', 'users', 'parents', 
-                'learners', 'teachers', 'school_classes', 'parent_learner_relationships', 
-                'subjects', 'assignments', 'submissions', 'attendance_records', 'audit_logs',
-                'app_notifications', 'announcements', 'password_reset_otps'
-              )
+              JOIN pg_namespace n ON n.oid = cl.relnamespace
+              WHERE c.contype = 'f' AND n.nspname = 'public'
           ) LOOP
-              EXECUTE 'ALTER TABLE "' || r.relname || '" DROP CONSTRAINT IF EXISTS "' || r.conname || '" CASCADE;';
+              EXECUTE 'ALTER TABLE public."' || r.relname || '" DROP CONSTRAINT IF EXISTS "' || r.conname || '" CASCADE;';
           END LOOP;
+
+          -- Convert primary key and foreign key columns across all tables to TEXT
+          BEGIN ALTER TABLE public."users" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."users" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."users" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."users" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."parents" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parents" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parents" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parents" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."learners" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."learners" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."learners" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."learners" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."learners" ALTER COLUMN "classId" TYPE TEXT USING "classId"::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."teachers" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."teachers" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."teachers" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."teachers" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."teachers" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."school_classes" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."school_classes" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."school_classes" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."school_classes" ALTER COLUMN "classTeacherId" TYPE TEXT USING "classTeacherId"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."school_classes" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."parent_learner_relationships" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parent_learner_relationships" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parent_learner_relationships" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parent_learner_relationships" ALTER COLUMN "parentId" TYPE TEXT USING "parentId"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."parent_learner_relationships" ALTER COLUMN "learnerId" TYPE TEXT USING "learnerId"::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."admission_applications" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."admission_applications" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."admission_applications" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+
+          BEGIN ALTER TABLE public."application_learners" ALTER COLUMN "id" DROP DEFAULT; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."application_learners" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."application_learners" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text; EXCEPTION WHEN others THEN null; END;
+          BEGIN ALTER TABLE public."application_learners" ALTER COLUMN "applicationId" TYPE TEXT USING "applicationId"::text; EXCEPTION WHEN others THEN null; END;
       END $$;
     `).catch(() => {});
 
