@@ -32,12 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-pop the Download App dialog upon device access
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        AppDownloadModal.show(context);
-      }
-    });
   }
 
   @override
@@ -352,25 +346,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // Top-Right Download App Button
-          Positioned(
-            top: 20,
-            right: 20,
-            child: ElevatedButton.icon(
-              onPressed: () => AppDownloadModal.show(context),
-              icon: const Icon(Icons.download_rounded, size: 16, color: Colors.black),
-              label: Text(
-                'Get App 📲',
-                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                elevation: 4,
-              ),
-            ),
-          ),
+
 
           // Content
           Center(

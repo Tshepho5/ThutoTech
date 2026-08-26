@@ -58,15 +58,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenDownload, 
 
         {/* User Info & Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={onOpenDownload}
-            className="btn btn-outline"
-            style={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', padding: '6px 12px', fontSize: '13px' }}
-          >
-            <Download size={15} style={{ color: 'var(--primary-green)' }} />
-            <span>Get App</span>
-          </button>
-
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ textAlign: 'right' }}>
