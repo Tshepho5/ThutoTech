@@ -60,27 +60,42 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }}>
       <div style={{ width: '100%', maxWidth: '440px' }}>
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            <img
+              src="/images/logo-3d.jpg"
+              alt="ThutoTech Logo"
+              style={{
+                width: '96px',
+                height: '96px',
+                borderRadius: '20px',
+                boxShadow: '0 8px 24px rgba(22, 196, 127, 0.35)',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                objectFit: 'cover',
+              }}
+            />
+          </div>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
             background: 'rgba(22, 196, 127, 0.15)',
             color: 'var(--primary-green)',
-            padding: '6px 14px',
+            padding: '4px 12px',
             borderRadius: '9999px',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: '700',
-            marginBottom: '12px',
+            marginBottom: '8px',
             border: '1px solid rgba(22, 196, 127, 0.3)',
+            letterSpacing: '0.05em',
           }}>
-            <ShieldCheck size={16} /> SECURE AUTHENTICATION GATEWAY
+            <ShieldCheck size={14} /> LEARN • CONNECT • EMPOWER
           </div>
-          <h2 style={{ color: 'white', fontSize: '26px', fontWeight: '800' }}>
+          <h2 style={{ color: 'white', fontSize: '24px', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>
             Sign In to ThutoTech
           </h2>
-          <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '13px', marginTop: '4px' }}>
-            Unified portal for Super Admins, Educators, Parents & Learners
+          <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '12px', marginTop: '2px' }}>
+            Unified Portal for Admins, Educators, Parents & Learners
           </p>
         </div>
 

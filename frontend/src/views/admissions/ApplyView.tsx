@@ -371,13 +371,23 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   if (submittedRef) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-main)' }}>
-        <div className="glass-card animate-fade-in" style={{ maxWidth: '620px', width: '100%', padding: '40px', textAlign: 'center', backgroundColor: '#FFFFFF' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(22, 196, 127, 0.15)', color: 'var(--primary-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
-            <CheckCircle2 size={44} />
+        <div className="glass-card animate-fade-in card-watermark" style={{ maxWidth: '620px', width: '100%', padding: '40px 32px', textAlign: 'center', backgroundColor: '#FFFFFF' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <img
+              src="/images/logo-3d.jpg"
+              alt="ThutoTech 3D Logo"
+              style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: '18px',
+                boxShadow: '0 8px 24px rgba(22, 196, 127, 0.3)',
+                objectFit: 'cover',
+              }}
+            />
           </div>
 
-          <span className="badge badge-green" style={{ fontSize: '13px', padding: '4px 14px' }}>
-            APPLICATION SUBMITTED SUCCESSFULLY
+          <span className="badge badge-green" style={{ fontSize: '12px', padding: '4px 14px', letterSpacing: '0.04em' }}>
+            ✓ APPLICATION SUBMITTED SUCCESSFULLY
           </span>
 
           <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--primary-navy)', margin: '14px 0 8px 0' }}>
@@ -418,16 +428,29 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
       <div style={{ maxWidth: '840px', margin: '0 auto' }}>
         
         {/* Header / Brand */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-navy)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              TT
-            </div>
+            <img
+              src="/images/app-icon-3d.jpg"
+              alt="ThutoTech 3D"
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(22, 196, 127, 0.3)',
+                objectFit: 'cover',
+              }}
+            />
             <div>
-              <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary-navy)', margin: 0 }}>
-                ThutoTech Admissions Portal
-              </h1>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Academic Year 2026 • Official Enrolment</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary-navy)', margin: 0 }}>
+                  ThutoTech Admissions Portal
+                </h1>
+                <span className="badge badge-green" style={{ fontSize: '10px' }}>2026 CAPS</span>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                LEARN • CONNECT • EMPOWER • Official South African Online Enrolment
+              </div>
             </div>
           </div>
 

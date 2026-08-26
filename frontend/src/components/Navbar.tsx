@@ -29,19 +29,18 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenDownload, 
       }}>
         {/* Brand Logo & Name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => onNavigateTab && onNavigateTab('home')}>
-          <div style={{
-            background: 'var(--primary-green)',
-            color: 'white',
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(22, 196, 127, 0.4)',
-          }}>
-            <GraduationCap size={24} />
-          </div>
+          <img
+            src="/images/app-icon-3d.jpg"
+            alt="ThutoTech 3D Icon"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              boxShadow: '0 4px 12px rgba(22, 196, 127, 0.4)',
+              border: '1.5px solid rgba(255, 255, 255, 0.2)',
+              objectFit: 'cover',
+            }}
+          />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span className="navbar-brand-text" style={{ color: 'white', fontSize: '18px', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>

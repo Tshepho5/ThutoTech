@@ -54,8 +54,11 @@ export const App: React.FC = () => {
 
   if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'PRINCIPAL')) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
-        <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
+        <div className="app-watermark-overlay" aria-hidden="true" />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
+        </div>
         <AppDownloadModal
           isOpen={isDownloadModalOpen}
           onClose={() => setIsDownloadModalOpen(false)}
@@ -65,17 +68,19 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
-      <Navbar
-        user={currentUser}
-        onLogout={handleLogout}
-        onOpenDownload={() => setIsDownloadModalOpen(true)}
-        onNavigateTab={(tab) => {
-          if (tab === 'apply') setCurrentView('APPLY');
-          else if (tab === 'register') setCurrentView('REGISTER');
-          else setCurrentView('LOGIN');
-        }}
-      />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
+      <div className="app-watermark-overlay" aria-hidden="true" />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Navbar
+          user={currentUser}
+          onLogout={handleLogout}
+          onOpenDownload={() => setIsDownloadModalOpen(true)}
+          onNavigateTab={(tab) => {
+            if (tab === 'apply') setCurrentView('APPLY');
+            else if (tab === 'register') setCurrentView('REGISTER');
+            else setCurrentView('LOGIN');
+          }}
+        />
 
       <main style={{ flex: 1 }}>
         {currentUser ? (
@@ -126,6 +131,7 @@ export const App: React.FC = () => {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 };

@@ -141,14 +141,27 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onBackToLogin }) => 
           </button>
         </div>
       ) : (
-        <form onSubmit={handleRegister} className="glass-card animate-fade-in" style={{ padding: '36px', backgroundColor: '#FFFFFF' }}>
-          <div style={{ marginBottom: '24px', borderBottom: '1px solid var(--card-border)', paddingBottom: '16px' }}>
-            <span className="badge badge-green" style={{ marginBottom: '8px' }}>Approved Applicants</span>
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary-navy)' }}>
+        <form onSubmit={handleRegister} className="glass-card animate-fade-in card-watermark" style={{ padding: '36px 32px', backgroundColor: '#FFFFFF' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px', borderBottom: '1px solid var(--card-border)', paddingBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <img
+                src="/images/logo-3d.jpg"
+                alt="ThutoTech 3D Logo"
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '16px',
+                  boxShadow: '0 6px 20px rgba(22, 196, 127, 0.3)',
+                  objectFit: 'cover',
+                }}
+              />
+            </div>
+            <span className="badge badge-green" style={{ marginBottom: '8px' }}>Approved Applicants • 2026 CAPS</span>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary-navy)', fontFamily: 'var(--font-heading)' }}>
               Complete Registration
             </h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Enter your official token from your admission acceptance email
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+              LEARN • CONNECT • EMPOWER • Enter your official token from your admission email
             </p>
           </div>
 

@@ -92,22 +92,25 @@ export const ForgotPasswordView: React.FC<ForgotPasswordViewProps> = ({ onBackTo
           <ArrowLeft size={16} /> Back to Sign In
         </button>
 
-        <div className="glass-card animate-fade-in" style={{ padding: '32px 28px', backgroundColor: '#FFFFFF' }}>
+        <div className="glass-card animate-fade-in card-watermark" style={{ padding: '32px 28px', backgroundColor: '#FFFFFF' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'rgba(22, 196, 127, 0.12)',
-              color: 'var(--primary-green)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px auto',
-            }}>
-              <KeyRound size={24} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <img
+                src="/images/logo-3d.jpg"
+                alt="ThutoTech 3D Logo"
+                style={{
+                  width: '74px',
+                  height: '74px',
+                  borderRadius: '16px',
+                  boxShadow: '0 6px 18px rgba(22, 196, 127, 0.3)',
+                  objectFit: 'cover',
+                }}
+              />
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary-navy)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: '6px', fontWeight: '700' }}>
+              THUTOTECH • LEARN • CONNECT • EMPOWER
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary-navy)', fontFamily: 'var(--font-heading)' }}>
               {step === 'REQUEST' && 'Reset Account Password'}
               {step === 'VERIFY' && 'Enter Verification OTP'}
               {step === 'DONE' && 'Password Reset Complete'}

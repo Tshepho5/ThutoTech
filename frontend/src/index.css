@@ -241,6 +241,55 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
+   🛡️ THUTOTECH UNIVERSAL 3D WATERMARK & BRANDING
+   ========================================================================== */
+.app-watermark-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url('/images/app-icon-3d.jpg');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: min(460px, 65vw);
+  opacity: 0.038;
+  filter: grayscale(10%);
+}
+
+[data-theme="dark"] .app-watermark-overlay {
+  opacity: 0.055;
+  filter: brightness(1.2);
+}
+
+.card-watermark {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-watermark::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 260px;
+  height: 260px;
+  background-image: url('/images/app-icon-3d.jpg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==========================================================================
    📱 COMPREHENSIVE RESPONSIVE STYLES FOR SMALL SCREENS & MOBILE DEVICES
    ========================================================================== */
 
