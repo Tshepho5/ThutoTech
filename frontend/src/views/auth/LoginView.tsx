@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { authApi } from '../../api/client';
 import { User } from '../../types';
-import { Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 interface LoginViewProps {
   onLoginSuccess: (user: User) => void;
@@ -18,6 +18,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -131,15 +132,35 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
               <div style={{ position: 'relative' }}>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   className="form-control"
-                  style={{ paddingLeft: '40px' }}
+                  style={{ paddingLeft: '40px', paddingRight: '40px' }}
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                 />
                 <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '10px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title={showPassword ? 'Hide Password' : 'Show Password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -201,8 +222,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 className="btn btn-outline"
                 style={{ width: '100%', justifyContent: 'flex-start', fontSize: '13px', padding: '10px 14px' }}
               >
-                <ShieldCheck size={16} color="var(--info-blue)" />
-                <span>Complete Registration with Token</span>
+                <Lock size={16} color="var(--purple-accent)" />
+                <span>Complete Registration with Admission Token</span>
               </button>
             </div>
           </div>

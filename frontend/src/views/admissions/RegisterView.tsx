@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { admissionsApi } from '../../api/client';
-import { ShieldCheck, Mail, AlertCircle, ArrowLeft, KeyRound, Lock, UserCheck } from 'lucide-react';
+import { ShieldCheck, Mail, AlertCircle, ArrowLeft, KeyRound, Lock, UserCheck, Eye, EyeOff } from 'lucide-react';
 
 interface RegisterViewProps {
   onBackToLogin: () => void;
@@ -13,6 +13,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onBackToLogin }) => 
   const [parentEmail, setParentEmail] = useState('');
   const [parentPassword, setParentPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Primary child activation
   const [learnerName, setLearnerName] = useState('');
@@ -22,6 +23,26 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onBackToLogin }) => 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Strict String Validation
+  const handleStringChange = (val: string, setter: (v: string) => void, fieldName: string) => {
+    if (/[0-9]/.test(val)) {
+      setError(`${fieldName} must contain letters only. Numbers (0-9) are not allowed.`);
+      return;
+    }
+    setError(null);
+    setter(val);
+  };
+
+  // Strict Integer Validation
+  const handleNumberChange = (val: string, setter: (v: string) => void, fieldName: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError(`${fieldName} must contain numbers only (0-9). Letters are not allowed.`);
+      return;
+    }
+    setError(null);
+    setter(val);
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,11 +178,23 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onBackToLogin }) => 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div className="form-group">
               <label className="form-label">Parent First Name</label>
-              <input type="text" className="form-control" placeholder="e.g. Sibusiso" value={parentName} onChange={(e) => setParentName(e.target.value)} />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="e.g. Sibusiso"
+                value={parentName}
+                onChange={(e) => handleStringChange(e.target.value, setParentName, 'Parent First Name')}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Parent Surname</label>
-              <input type="text" className="form-control" placeholder="e.g. Makola" value={parentSurname} onChange={(e) => setParentSurname(e.target.value)} />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="e.g. Makola"
+                value={parentSurname}
+                onChange={(e) => handleStringChange(e.target.value, setParentSurname, 'Parent Surname')}
+              />
             </div>
           </div>
 
@@ -182,19 +215,26 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onBackToLogin }) => 
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-group">
+            <div className="form-group" style={{ position: 'relative' }}>
               <label className="form-label">Create Parent Password *</label>
               <div style={{ position: 'relative' }}>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   className="form-control"
-                  style={{ paddingLeft: '38px' }}
+                  style={{ paddingLeft: '38px', paddingRight: '38px' }}
                   placeholder="••••••••••••"
                   value={parentPassword}
                   onChange={(e) => setParentPassword(e.target.value)}
                   required
                 />
                 <Lock size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: '12px', top: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -221,11 +261,30 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onBackToLogin }) => 
               Learner Details (For Student ID Registration)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <input type="text" className="form-control" placeholder="Learner First Name" value={learnerName} onChange={(e) => setLearnerName(e.target.value)} />
-              <input type="text" className="form-control" placeholder="Learner Surname" value={learnerSurname} onChange={(e) => setLearnerSurname(e.target.value)} />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Learner First Name"
+                value={learnerName}
+                onChange={(e) => handleStringChange(e.target.value, setLearnerName, 'Learner First Name')}
+              />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Learner Surname"
+                value={learnerSurname}
+                onChange={(e) => handleStringChange(e.target.value, setLearnerSurname, 'Learner Surname')}
+              />
             </div>
             <div style={{ marginTop: '10px' }}>
-              <input type="text" maxLength={13} className="form-control" placeholder="Learner SA ID Number" value={learnerIdNumber} onChange={(e) => setLearnerIdNumber(e.target.value)} />
+              <input
+                type="text"
+                maxLength={13}
+                className="form-control"
+                placeholder="Learner SA ID Number (13 Digits)"
+                value={learnerIdNumber}
+                onChange={(e) => handleNumberChange(e.target.value, setLearnerIdNumber, 'Learner SA ID')}
+              />
             </div>
           </div>
 

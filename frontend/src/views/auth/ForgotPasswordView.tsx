@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../../api/client';
-import { Mail, KeyRound, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, KeyRound, Lock, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface ForgotPasswordViewProps {
   onBackToLogin: () => void;
@@ -12,9 +12,19 @@ export const ForgotPasswordView: React.FC<ForgotPasswordViewProps> = ({ onBackTo
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleOtpChange = (val: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError('OTP must contain digits (0-9) only.');
+      return;
+    }
+    setError(null);
+    setOtp(val);
+  };
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,46 +93,94 @@ export const ForgotPasswordView: React.FC<ForgotPasswordViewProps> = ({ onBackTo
         </button>
 
         <div className="glass-card animate-fade-in" style={{ padding: '32px 28px', backgroundColor: '#FFFFFF' }}>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary-navy)', marginBottom: '8px' }}>
-            Password Recovery
-          </h2>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: 'rgba(22, 196, 127, 0.12)',
+              color: 'var(--primary-green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px auto',
+            }}>
+              <KeyRound size={24} />
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary-navy)' }}>
+              {step === 'REQUEST' && 'Reset Account Password'}
+              {step === 'VERIFY' && 'Enter Verification OTP'}
+              {step === 'DONE' && 'Password Reset Complete'}
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              {step === 'REQUEST' && 'Enter your verified account email to receive a single-use OTP code.'}
+              {step === 'VERIFY' && 'Check your email inbox for your 6-digit verification code.'}
+              {step === 'DONE' && 'Your credentials have been securely updated.'}
+            </p>
+          </div>
 
           {error && (
-            <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', color: 'var(--danger-red)', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <AlertCircle size={16} />
+            <div style={{
+              background: '#FEE2E2',
+              border: '1px solid #FECACA',
+              color: 'var(--danger-red)',
+              padding: '12px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '20px',
+            }}>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
 
           {message && (
-            <div style={{ background: 'rgba(22, 196, 127, 0.12)', border: '1px solid var(--primary-green)', color: '#0F766E', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <CheckCircle2 size={16} />
+            <div style={{
+              background: 'rgba(22, 196, 127, 0.1)',
+              border: '1px solid var(--primary-green)',
+              color: 'var(--primary-navy)',
+              padding: '12px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '20px',
+            }}>
+              <CheckCircle2 size={18} color="var(--primary-green)" style={{ flexShrink: 0 }} />
               <span>{message}</span>
             </div>
           )}
 
           {step === 'REQUEST' && (
             <form onSubmit={handleRequestOtp}>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Enter your registered ThutoTech account email to receive a secure 2-minute OTP.
-              </p>
               <div className="form-group">
-                <label className="form-label">Email Address</label>
+                <label className="form-label">Registered Account Email</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type="email"
                     className="form-control"
-                    style={{ paddingLeft: '38px' }}
-                    placeholder="user@thutotech.co.za"
+                    style={{ paddingLeft: '40px' }}
+                    placeholder="e.g. parent@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required
                     disabled={isLoading}
                   />
-                  <Mail size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                  <Mail size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={isLoading}>
-                {isLoading ? 'Dispatching OTP...' : 'Send 2-Minute Security OTP'}
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '12px', fontSize: '14px', marginTop: '12px' }}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Dispatching OTP...' : 'Send Security OTP'}
               </button>
             </form>
           )}
@@ -130,70 +188,86 @@ export const ForgotPasswordView: React.FC<ForgotPasswordViewProps> = ({ onBackTo
           {step === 'VERIFY' && (
             <form onSubmit={handleResetPassword}>
               <div className="form-group">
-                <label className="form-label">6-Digit Security OTP</label>
+                <label className="form-label">6-Digit OTP Code *</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type="text"
-                    maxLength={6}
                     className="form-control"
-                    style={{ paddingLeft: '38px', letterSpacing: '4px', fontWeight: 'bold' }}
+                    style={{ paddingLeft: '40px', letterSpacing: '4px', fontWeight: 'bold', fontSize: '16px' }}
                     placeholder="123456"
+                    maxLength={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => handleOtpChange(e.target.value)}
+                    required
                   />
-                  <KeyRound size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                  <KeyRound size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">New Password</label>
+                <label className="form-label">New Password *</label>
                 <div style={{ position: 'relative' }}>
                   <input
-                    type="password"
+                    type={showNewPassword ? 'text' : 'password'}
                     className="form-control"
-                    style={{ paddingLeft: '38px' }}
+                    style={{ paddingLeft: '40px', paddingRight: '40px' }}
                     placeholder="••••••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    required
                   />
-                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                  <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    style={{ position: 'absolute', right: '12px', top: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Confirm New Password</label>
+                <label className="form-label">Confirm New Password *</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type="password"
                     className="form-control"
-                    style={{ paddingLeft: '38px' }}
+                    style={{ paddingLeft: '40px' }}
                     placeholder="••••••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
                   />
-                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                  <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
                 </div>
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={isLoading}>
-                {isLoading ? 'Resetting Password...' : 'Save & Activate New Password'}
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '12px', fontSize: '14px', marginTop: '12px' }}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Resetting Password...' : 'Save New Password'}
               </button>
             </form>
           )}
 
           {step === 'DONE' && (
-            <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(22, 196, 127, 0.15)', color: 'var(--primary-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
-                <CheckCircle2 size={32} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                background: 'rgba(22, 196, 127, 0.1)',
+                padding: '20px',
+                borderRadius: '12px',
+                marginBottom: '20px',
+                color: 'var(--primary-navy)',
+                fontSize: '14px',
+              }}>
+                🎉 Your account password has been successfully updated. You may now sign in using your new credentials.
               </div>
-              <h3 style={{ fontSize: '18px', color: 'var(--primary-navy)', marginBottom: '8px' }}>
-                Password Updated Successfully!
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                Your account password has been updated. You may now sign in using your new credentials.
-              </p>
-              <button onClick={onBackToLogin} className="btn btn-primary" style={{ width: '100%' }}>
-                Return to Sign In
+              <button onClick={onBackToLogin} className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
+                Sign In Now
               </button>
             </div>
           )}

@@ -6,7 +6,6 @@ import {
   Users,
   GraduationCap,
   FileCheck,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
@@ -14,14 +13,12 @@ import {
   Plus,
   Trash2,
   UploadCloud,
-  FileText,
   Mail,
   Sparkles,
   Lock,
   Eye,
   EyeOff,
-  Check,
-  FileSpreadsheet
+  Check
 } from 'lucide-react';
 
 interface ApplyViewProps {
@@ -82,8 +79,33 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   const [submittedRef, setSubmittedRef] = useState<string | null>(null);
   const [isAiScanning, setIsAiScanning] = useState(false);
 
+  // Strict String Validation (Rejects Numbers)
+  const handleStringChange = (val: string, setter: (v: string) => void, fieldName: string) => {
+    if (/[0-9]/.test(val)) {
+      setError(`${fieldName} must contain letters only. Numbers (0-9) are not allowed.`);
+      return;
+    }
+    setError(null);
+    setter(val);
+  };
+
+  // Strict Number Validation (Rejects Non-Numbers)
+  const handleNumberChange = (val: string, setter: (v: string) => void, fieldName: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError(`${fieldName} must contain numbers only (0-9). Letters or symbols are not allowed.`);
+      return;
+    }
+    setError(null);
+    setter(val);
+  };
+
   // SA ID Auto-Parser
   const handleParentIdChange = (val: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError('National ID Number must contain numbers only (0-9).');
+      return;
+    }
+    setError(null);
     setParentIdNumber(val);
     if (val.length === 13) {
       const yy = parseInt(val.substring(0, 2), 10);
@@ -125,7 +147,29 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
     setLearners(learners.filter((_, i) => i !== index));
   };
 
-  const updateLearner = (index: number, field: keyof AdmissionLearner, value: any) => {
+  const updateLearnerString = (index: number, field: 'learnerName' | 'learnerSurname' | 'previousSchool', val: string, label: string) => {
+    if (/[0-9]/.test(val)) {
+      setError(`${label} must contain letters only. Numbers (0-9) are not allowed.`);
+      return;
+    }
+    setError(null);
+    const updated = [...learners];
+    updated[index] = { ...updated[index], [field]: val };
+    setLearners(updated);
+  };
+
+  const updateLearnerNumber = (index: number, field: 'learnerIdNumber', val: string, label: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError(`${label} must contain numbers only (0-9). Letters are not allowed.`);
+      return;
+    }
+    setError(null);
+    const updated = [...learners];
+    updated[index] = { ...updated[index], [field]: val };
+    setLearners(updated);
+  };
+
+  const updateLearnerSelect = (index: number, field: keyof AdmissionLearner, value: any) => {
     const updated = [...learners];
     updated[index] = { ...updated[index], [field]: value };
     setLearners(updated);
@@ -140,6 +184,10 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
       }
       if (parentIdNumber.length !== 13) {
         setError('South African ID number must be exactly 13 digits.');
+        return;
+      }
+      if (parentPhone.length !== 10) {
+        setError('Phone number must be exactly 10 digits.');
         return;
       }
       if (parentPassword && parentPassword.length < 6) {
@@ -168,6 +216,10 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         const l = learners[i];
         if (!l.learnerName.trim() || !l.learnerSurname.trim() || !l.learnerIdNumber.trim()) {
           setError(`Please complete full name and SA ID for Learner #${i + 1}.`);
+          return;
+        }
+        if (l.learnerIdNumber.length !== 13) {
+          setError(`Learner #${i + 1} South African ID must be exactly 13 digits.`);
           return;
         }
       }
@@ -343,7 +395,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
           })}
         </div>
 
-        {/* Error Alert */}
+        {/* Error Alert Banner */}
         {error && (
           <div style={{
             background: 'rgba(239, 68, 68, 0.1)',
@@ -363,7 +415,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         )}
 
         {/* =================================================================== */}
-        {/* STEP 1: PRIMARY PARENT / GUARDIAN FORM (WITH PASSWORD CREATION)     */}
+        {/* STEP 1: PRIMARY PARENT / GUARDIAN FORM                             */}
         {/* =================================================================== */}
         {currentStep === 1 && (
           <div className="glass-card animate-fade-in" style={{ padding: '28px', backgroundColor: '#FFFFFF' }}>
@@ -377,25 +429,25 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">First Name *</label>
+                <label className="form-label">First Name (Letters Only) *</label>
                 <input
                   type="text"
                   className="form-control"
                   placeholder="e.g. Tshepo"
                   value={parentName}
-                  onChange={(e) => setParentName(e.target.value)}
+                  onChange={(e) => handleStringChange(e.target.value, setParentName, 'First Name')}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Surname *</label>
+                <label className="form-label">Surname (Letters Only) *</label>
                 <input
                   type="text"
                   className="form-control"
                   placeholder="e.g. Makola"
                   value={parentSurname}
-                  onChange={(e) => setParentSurname(e.target.value)}
+                  onChange={(e) => handleStringChange(e.target.value, setParentSurname, 'Surname')}
                   required
                 />
               </div>
@@ -403,7 +455,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">South African National ID (13-Digits) *</label>
+                <label className="form-label">South African National ID (13 Digits) *</label>
                 <input
                   type="text"
                   className="form-control"
@@ -416,14 +468,14 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Mobile Phone Number *</label>
+                <label className="form-label">Mobile Phone Number (10 Digits) *</label>
                 <input
                   type="tel"
                   className="form-control"
-                  placeholder="082 123 4567"
+                  placeholder="0821234567"
                   maxLength={10}
                   value={parentPhone}
-                  onChange={(e) => setParentPhone(e.target.value)}
+                  onChange={(e) => handleNumberChange(e.target.value, setParentPhone, 'Phone Number')}
                   required
                 />
               </div>
@@ -454,6 +506,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                   <input
                     type={showParentPassword ? 'text' : 'password'}
                     className="form-control"
+                    style={{ paddingRight: '40px' }}
                     placeholder="At least 6 characters"
                     value={parentPassword}
                     onChange={(e) => setParentPassword(e.target.value)}
@@ -478,9 +531,6 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                   />
                 </div>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                🔒 This password will allow you to sign in to check application status and track academic progress.
-              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
@@ -492,7 +542,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         )}
 
         {/* =================================================================== */}
-        {/* STEP 2: SECONDARY PARENT / GUARDIAN FORM (WITH PASSWORD CREATION)   */}
+        {/* STEP 2: SECONDARY PARENT / GUARDIAN FORM                           */}
         {/* =================================================================== */}
         {currentStep === 2 && (
           <div className="glass-card animate-fade-in" style={{ padding: '28px', backgroundColor: '#FFFFFF' }}>
@@ -521,29 +571,61 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
               <div className="animate-fade-in">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div className="form-group">
-                    <label className="form-label">First Name *</label>
-                    <input type="text" className="form-control" placeholder="e.g. Mpho" value={secName} onChange={(e) => setSecName(e.target.value)} />
+                    <label className="form-label">First Name (Letters Only) *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Mpho"
+                      value={secName}
+                      onChange={(e) => handleStringChange(e.target.value, setSecName, 'Secondary Parent Name')}
+                    />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Surname *</label>
-                    <input type="text" className="form-control" placeholder="e.g. Makola" value={secSurname} onChange={(e) => setSecSurname(e.target.value)} />
+                    <label className="form-label">Surname (Letters Only) *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Makola"
+                      value={secSurname}
+                      onChange={(e) => handleStringChange(e.target.value, setSecSurname, 'Secondary Parent Surname')}
+                    />
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div className="form-group">
-                    <label className="form-label">National ID Number</label>
-                    <input type="text" className="form-control" placeholder="13-digit ID" maxLength={13} value={secIdNumber} onChange={(e) => setSecIdNumber(e.target.value)} />
+                    <label className="form-label">National ID Number (13 Digits)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="13-digit ID"
+                      maxLength={13}
+                      value={secIdNumber}
+                      onChange={(e) => handleNumberChange(e.target.value, setSecIdNumber, 'Secondary Parent ID')}
+                    />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Mobile Phone Number *</label>
-                    <input type="tel" className="form-control" placeholder="083 456 7890" maxLength={10} value={secPhone} onChange={(e) => setSecPhone(e.target.value)} />
+                    <label className="form-label">Mobile Phone Number (10 Digits) *</label>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      placeholder="0834567890"
+                      maxLength={10}
+                      value={secPhone}
+                      onChange={(e) => handleNumberChange(e.target.value, setSecPhone, 'Secondary Parent Phone')}
+                    />
                   </div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Email Address *</label>
-                  <input type="email" className="form-control" placeholder="secondary.parent@gmail.com" value={secEmail} onChange={(e) => setSecEmail(e.target.value)} />
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="secondary.parent@gmail.com"
+                    value={secEmail}
+                    onChange={(e) => setSecEmail(e.target.value)}
+                  />
                 </div>
 
                 {/* SECONDARY PARENT PASSWORD CREATION */}
@@ -559,6 +641,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                       <input
                         type={showSecPassword ? 'text' : 'password'}
                         className="form-control"
+                        style={{ paddingRight: '40px' }}
                         placeholder="At least 6 characters"
                         value={secPassword}
                         onChange={(e) => setSecPassword(e.target.value)}
@@ -599,7 +682,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         )}
 
         {/* =================================================================== */}
-        {/* STEP 3: CHILDREN ENROLMENT FORM (MULTI-CHILD SUPPORT)               */}
+        {/* STEP 3: CHILDREN ENROLMENT FORM                                    */}
         {/* =================================================================== */}
         {currentStep === 3 && (
           <div className="glass-card animate-fade-in" style={{ padding: '28px', backgroundColor: '#FFFFFF' }}>
@@ -632,24 +715,46 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group">
-                    <label className="form-label">Learner First Name *</label>
-                    <input type="text" className="form-control" placeholder="e.g. Senyanyathi" value={learner.learnerName} onChange={(e) => updateLearner(idx, 'learnerName', e.target.value)} required />
+                    <label className="form-label">Learner First Name (Letters Only) *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Senyanyathi"
+                      value={learner.learnerName}
+                      onChange={(e) => updateLearnerString(idx, 'learnerName', e.target.value, `Learner #${idx + 1} First Name`)}
+                      required
+                    />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Learner Surname *</label>
-                    <input type="text" className="form-control" placeholder="e.g. Makola" value={learner.learnerSurname} onChange={(e) => updateLearner(idx, 'learnerSurname', e.target.value)} required />
+                    <label className="form-label">Learner Surname (Letters Only) *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Makola"
+                      value={learner.learnerSurname}
+                      onChange={(e) => updateLearnerString(idx, 'learnerSurname', e.target.value, `Learner #${idx + 1} Surname`)}
+                      required
+                    />
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group">
-                    <label className="form-label">Learner National ID / Birth Cert No. *</label>
-                    <input type="text" className="form-control" placeholder="13-Digit SA ID" maxLength={13} value={learner.learnerIdNumber} onChange={(e) => updateLearner(idx, 'learnerIdNumber', e.target.value)} required />
+                    <label className="form-label">Learner National ID (13 Digits) *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="13-Digit SA ID"
+                      maxLength={13}
+                      value={learner.learnerIdNumber}
+                      onChange={(e) => updateLearnerNumber(idx, 'learnerIdNumber', e.target.value, `Learner #${idx + 1} SA ID`)}
+                      required
+                    />
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">Grade Applying For *</label>
-                    <select className="form-control" value={learner.gradeApplyingFor} onChange={(e) => updateLearner(idx, 'gradeApplyingFor', e.target.value)}>
+                    <select className="form-control" value={learner.gradeApplyingFor} onChange={(e) => updateLearnerSelect(idx, 'gradeApplyingFor', e.target.value)}>
                       {['Grade R', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
                         <option key={g} value={g}>{g}</option>
                       ))}
@@ -660,7 +765,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                   <div className="form-group">
                     <label className="form-label">Home Language</label>
-                    <select className="form-control" value={learner.homeLanguage} onChange={(e) => updateLearner(idx, 'homeLanguage', e.target.value)}>
+                    <select className="form-control" value={learner.homeLanguage} onChange={(e) => updateLearnerSelect(idx, 'homeLanguage', e.target.value)}>
                       {['Sepedi', 'isiZulu', 'isiXhosa', 'Setswana', 'Sesotho', 'Xitsonga', 'siSwati', 'Tshivenda', 'isiNdebele', 'Afrikaans', 'English'].map(l => (
                         <option key={l} value={l}>{l}</option>
                       ))}
@@ -669,7 +774,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
 
                   <div className="form-group">
                     <label className="form-label">First Additional Lang</label>
-                    <select className="form-control" value={learner.firstAdditionalLanguage} onChange={(e) => updateLearner(idx, 'firstAdditionalLanguage', e.target.value)}>
+                    <select className="form-control" value={learner.firstAdditionalLanguage} onChange={(e) => updateLearnerSelect(idx, 'firstAdditionalLanguage', e.target.value)}>
                       {['English', 'Afrikaans', 'Sepedi', 'isiZulu'].map(l => (
                         <option key={l} value={l}>{l}</option>
                       ))}
@@ -678,7 +783,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
 
                   <div className="form-group">
                     <label className="form-label">Subject Stream (Gr 10-12)</label>
-                    <select className="form-control" value={learner.stream || 'General'} onChange={(e) => updateLearner(idx, 'stream', e.target.value)}>
+                    <select className="form-control" value={learner.stream || 'General'} onChange={(e) => updateLearnerSelect(idx, 'stream', e.target.value)}>
                       <option value="Science">Science & Math</option>
                       <option value="Commerce">Commerce & Accounting</option>
                       <option value="General">General / Humanities</option>
@@ -688,8 +793,14 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Previous School Attended</label>
-                  <input type="text" className="form-control" placeholder="e.g. Polokwane Primary School" value={learner.previousSchool} onChange={(e) => updateLearner(idx, 'previousSchool', e.target.value)} />
+                  <label className="form-label">Previous School Attended (Letters Only)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Polokwane Primary School"
+                    value={learner.previousSchool}
+                    onChange={(e) => updateLearnerString(idx, 'previousSchool', e.target.value, 'Previous School')}
+                  />
                 </div>
               </div>
             ))}
@@ -706,7 +817,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         )}
 
         {/* =================================================================== */}
-        {/* STEP 4: DOCUMENT UPLOADS & AI VERIFICATION & APPLICATION SUBMISSION */}
+        {/* STEP 4: DOCUMENT UPLOADS & AI VERIFICATION & SUBMISSION             */}
         {/* =================================================================== */}
         {currentStep === 4 && (
           <div className="glass-card animate-fade-in" style={{ padding: '28px', backgroundColor: '#FFFFFF' }}>
