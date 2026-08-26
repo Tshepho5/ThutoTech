@@ -529,41 +529,41 @@ export async function connectDatabase() {
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "used" BOOLEAN DEFAULT FALSE;`,
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
 
-      // 16. Convert all ID & Foreign Key columns to TEXT to prevent integer cast errors
-      `DO $$ BEGIN ALTER TABLE "users" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "users" ALTER COLUMN "schoolId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "parents" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "parents" ALTER COLUMN "userId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "userId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "classId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "teachers" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "teachers" ALTER COLUMN "userId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "teachers" ALTER COLUMN "schoolId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "school_classes" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "school_classes" ALTER COLUMN "classTeacherId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "school_classes" ALTER COLUMN "schoolId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "parentId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "learnerId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "subjects" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "subjects" ALTER COLUMN "teacherId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "subjects" ALTER COLUMN "schoolId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "subjectId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "classId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "teacherId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "submissions" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "submissions" ALTER COLUMN "assignmentId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "submissions" ALTER COLUMN "learnerId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "attendance_records" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "attendance_records" ALTER COLUMN "classId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "attendance_records" ALTER COLUMN "learnerId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "audit_logs" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "audit_logs" ALTER COLUMN "userId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "admission_applications" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "application_learners" ALTER COLUMN "id" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`,
-      `DO $$ BEGIN ALTER TABLE "application_learners" ALTER COLUMN "applicationId" TYPE TEXT; EXCEPTION WHEN others THEN null; END $$;`
+      // 16. Convert all ID & Foreign Key columns to TEXT with explicit USING cast
+      `DO $$ BEGIN ALTER TABLE "users" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "users" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "parents" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "parents" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "classId" TYPE TEXT USING "classId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "teachers" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "teachers" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "teachers" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "school_classes" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "school_classes" ALTER COLUMN "classTeacherId" TYPE TEXT USING "classTeacherId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "school_classes" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "parentId" TYPE TEXT USING "parentId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "learnerId" TYPE TEXT USING "learnerId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "subjects" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "subjects" ALTER COLUMN "teacherId" TYPE TEXT USING "teacherId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "subjects" ALTER COLUMN "schoolId" TYPE TEXT USING "schoolId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "subjectId" TYPE TEXT USING "subjectId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "classId" TYPE TEXT USING "classId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "assignments" ALTER COLUMN "teacherId" TYPE TEXT USING "teacherId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "submissions" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "submissions" ALTER COLUMN "assignmentId" TYPE TEXT USING "assignmentId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "submissions" ALTER COLUMN "learnerId" TYPE TEXT USING "learnerId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "attendance_records" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "attendance_records" ALTER COLUMN "classId" TYPE TEXT USING "classId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "attendance_records" ALTER COLUMN "learnerId" TYPE TEXT USING "learnerId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "audit_logs" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "audit_logs" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "admission_applications" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "application_learners" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;`,
+      `DO $$ BEGIN ALTER TABLE "application_learners" ALTER COLUMN "applicationId" TYPE TEXT USING "applicationId"::text; EXCEPTION WHEN others THEN null; END $$;`
     ];
 
     for (const syncQ of columnSyncQueries) {
@@ -621,7 +621,6 @@ export async function connectDatabase() {
         "status" = 'ACTIVE';
     `, [adminPassHash]);
 
-    console.log('✅ PostgreSQL Schema synchronized: all 17 tables, all columns, CAPS subjects and Super Admin ready.');
   } catch (error: any) {
     console.error('⚠️ PostgreSQL Schema Initialization Error:', error.message);
   }

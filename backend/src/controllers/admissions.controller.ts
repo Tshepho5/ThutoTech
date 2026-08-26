@@ -61,6 +61,18 @@ async function ensureAdmissionTablesExist() {
         "documentVerified" BOOLEAN DEFAULT FALSE,
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      DO $$ BEGIN ALTER TABLE "users" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "parents" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "parents" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "learners" ALTER COLUMN "userId" TYPE TEXT USING "userId"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "parentId" TYPE TEXT USING "parentId"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "parent_learner_relationships" ALTER COLUMN "learnerId" TYPE TEXT USING "learnerId"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "admission_applications" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "application_learners" ALTER COLUMN "id" TYPE TEXT USING "id"::text; EXCEPTION WHEN others THEN null; END $$;
+      DO $$ BEGIN ALTER TABLE "application_learners" ALTER COLUMN "applicationId" TYPE TEXT USING "applicationId"::text; EXCEPTION WHEN others THEN null; END $$;
     `);
   } catch (err: any) {
     console.warn('⚠️ ensureAdmissionTablesExist warning:', err.message);
