@@ -363,7 +363,8 @@ export async function connectDatabase() {
       `CREATE TABLE IF NOT EXISTS "password_reset_otps" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
         "email" VARCHAR(255) NOT NULL,
-        "otpHash" TEXT NOT NULL,
+        "otp" VARCHAR(10),
+        "otpHash" TEXT,
         "expiresAt" TIMESTAMP WITH TIME ZONE NOT NULL,
         "used" BOOLEAN DEFAULT FALSE,
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -586,6 +587,7 @@ export async function connectDatabase() {
       // 15. password_reset_otps
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`,
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "otp" VARCHAR(10);`,
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "otpHash" TEXT;`,
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP WITH TIME ZONE;`,
       `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "used" BOOLEAN DEFAULT FALSE;`,

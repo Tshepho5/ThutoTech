@@ -176,6 +176,20 @@ export class AuthController {
 
   static async forgotPassword(req: Request, res: Response) {
     try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS "password_reset_otps" (
+          "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          "email" VARCHAR(255) NOT NULL,
+          "otp" VARCHAR(10),
+          "otpHash" TEXT,
+          "expiresAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+          "used" BOOLEAN DEFAULT FALSE,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "otp" VARCHAR(10);
+        ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "otpHash" TEXT;
+      `).catch(() => {});
+
       const { email } = req.body;
       if (!email) {
         return res.status(400).json({ success: false, message: 'Email address is required.' });
