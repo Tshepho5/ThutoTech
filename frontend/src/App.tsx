@@ -88,6 +88,7 @@ export const App: React.FC = () => {
                 onNavigateApply={() => setCurrentView('APPLY')}
                 onNavigateRegister={() => setCurrentView('REGISTER')}
                 onNavigateForgotPassword={() => setCurrentView('FORGOT')}
+                onOpenDownload={() => setIsDownloadModalOpen(true)}
               />
             )}
             {currentView === 'FORGOT' && (

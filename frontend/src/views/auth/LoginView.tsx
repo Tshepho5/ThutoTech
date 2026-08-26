@@ -8,6 +8,7 @@ interface LoginViewProps {
   onNavigateApply: () => void;
   onNavigateRegister: () => void;
   onNavigateForgotPassword: () => void;
+  onOpenDownload?: () => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
@@ -15,6 +16,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   onNavigateApply,
   onNavigateRegister,
   onNavigateForgotPassword,
+  onOpenDownload,
 }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -199,6 +201,18 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <Lock size={16} color="var(--purple-accent)" />
                 <span>Complete Registration with Admission Token</span>
               </button>
+
+              {onOpenDownload && (
+                <button
+                  type="button"
+                  onClick={onOpenDownload}
+                  className="btn btn-navy"
+                  style={{ width: '100%', justifyContent: 'center', fontSize: '13px', padding: '10px 14px', marginTop: '4px' }}
+                >
+                  <ArrowRight size={16} color="var(--primary-green)" />
+                  <span>📲 Download Mobile App (Android APK)</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
