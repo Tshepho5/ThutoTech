@@ -17,9 +17,14 @@ const getConnectionString = () => {
   return `postgresql://${user}:${pass}@${host}:${port}/${name}`;
 };
 
+const isRemoteDb = () => {
+  const dbUrl = process.env.DATABASE_URL || '';
+  return dbUrl.length > 0 && !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1');
+};
+
 export const pool = new Pool({
   connectionString: getConnectionString(),
-  ssl: (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com'))
+  ssl: isRemoteDb() || process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,
   max: 20,
@@ -84,8 +89,11 @@ export async function connectDatabase() {
         "status" = 'ACTIVE';
     `, [adminPassHash]);
 
-    console.log('✅ Super Administrator (Lebogang Makola: thutotech.admin@gmail.com) verified in PostgreSQL.');
-  } catch (error) {
-    console.error('❌ PostgreSQL Connection / Schema Sync Error:', error);
+    console.log('✅ Super Administrator credentials initialized.');
+  } catch (error: any) {
+    console.error('⚠️ PostgreSQL Connection Notice:', error.message);
+    if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1')) {
+      console.warn('📌 To connect your Render service to a cloud database, add `DATABASE_URL` in your Render Dashboard > Environment.');
+    }
   }
 }
