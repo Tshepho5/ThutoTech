@@ -5,9 +5,72 @@ import bcrypt from 'bcryptjs';
 import { EmailService } from '../services/email.service';
 import { v4 as uuidv4 } from 'uuid';
 
+async function ensureAdmissionTablesExist() {
+  try {
+    await query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS "admission_applications" (
+        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+        "applicationNumber" VARCHAR(50) UNIQUE NOT NULL,
+        "primaryParentName" VARCHAR(100) NOT NULL,
+        "primaryParentSurname" VARCHAR(100) NOT NULL,
+        "primaryParentPhone" VARCHAR(20) NOT NULL,
+        "primaryParentEmail" VARCHAR(255) NOT NULL,
+        "primaryParentIdNumber" VARCHAR(13) NOT NULL,
+        "primaryParentGender" VARCHAR(20),
+        "primaryParentDob" DATE,
+        "primaryParentAge" INT,
+        "primaryParentCitizenship" VARCHAR(50),
+        "primaryParentDocumentUrl" TEXT,
+        "hasSecondaryParent" BOOLEAN DEFAULT FALSE,
+        "secondaryParentName" VARCHAR(100),
+        "secondaryParentSurname" VARCHAR(100),
+        "secondaryParentPhone" VARCHAR(20),
+        "secondaryParentEmail" VARCHAR(255),
+        "secondaryParentIdNumber" VARCHAR(13),
+        "secondaryParentGender" VARCHAR(20),
+        "secondaryParentDob" DATE,
+        "secondaryParentAge" INT,
+        "secondaryParentCitizenship" VARCHAR(50),
+        "secondaryParentDocumentUrl" TEXT,
+        "status" VARCHAR(50) DEFAULT 'SUBMITTED',
+        "registrationToken" VARCHAR(50) UNIQUE NOT NULL,
+        "reviewerNotes" TEXT,
+        "reviewedAt" TIMESTAMP WITH TIME ZONE,
+        "submittedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS "application_learners" (
+        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+        "applicationId" TEXT NOT NULL REFERENCES "admission_applications"("id") ON DELETE CASCADE,
+        "learnerName" VARCHAR(100) NOT NULL,
+        "learnerSurname" VARCHAR(100) NOT NULL,
+        "learnerIdNumber" VARCHAR(13) NOT NULL,
+        "learnerGender" VARCHAR(20),
+        "learnerDob" DATE,
+        "learnerAge" INT,
+        "learnerCitizenship" VARCHAR(50),
+        "gradeApplyingFor" VARCHAR(50) NOT NULL,
+        "homeLanguage" VARCHAR(50) NOT NULL,
+        "firstAdditionalLanguage" VARCHAR(50),
+        "stream" VARCHAR(50),
+        "previousSchool" VARCHAR(255) NOT NULL,
+        "documentUrl" TEXT,
+        "documentName" VARCHAR(255),
+        "documentVerified" BOOLEAN DEFAULT FALSE,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch (err: any) {
+    console.warn('⚠️ ensureAdmissionTablesExist warning:', err.message);
+  }
+}
+
 export class AdmissionsController {
   static async apply(req: Request, res: Response) {
     try {
+      await ensureAdmissionTablesExist();
       const {
         primaryParentName,
         primaryParentSurname,
@@ -132,57 +195,170 @@ export class AdmissionsController {
         ]);
       }
 
-      // Pre-create parent login account if password was specified
+      // 1. Establish Parent Profile & User Account
       const { primaryParentPassword, secondaryParentPassword } = req.body;
-      if (primaryParentPassword) {
-        const pHash = await bcrypt.hash(primaryParentPassword, 10);
-        const pUserId = uuidv4();
-        await query(`
+      const pHash = primaryParentPassword ? await bcrypt.hash(primaryParentPassword, 10) : await bcrypt.hash('#Parent#$2026$', 10);
+      
+      const parentUserRes = await query(`
+        INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT ("email") DO UPDATE SET
+          "passwordHash" = $3,
+          "name" = $4,
+          "surname" = $5,
+          "phone" = $7
+        RETURNING id
+      `, [
+        uuidv4(),
+        primaryParentEmail.toLowerCase().trim(),
+        pHash,
+        primaryParentName.trim(),
+        primaryParentSurname.trim(),
+        UserRole.PARENT,
+        primaryParentPhone.trim(),
+        UserStatus.ACTIVE,
+      ]);
+      const parentUserId = parentUserRes.rows[0]?.id;
+
+      const parentRes = await query(`
+        INSERT INTO "parents" (
+          "id", "userId", "fullName", "surname", "phone", "email", "idNumber",
+          "hasSecondaryParent", "secondaryParentFullName", "secondaryParentSurname",
+          "secondaryParentPhone", "secondaryParentEmail", "secondaryParentIdNumber"
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT ("userId") DO UPDATE SET
+          "fullName" = $3,
+          "surname" = $4,
+          "phone" = $5,
+          "email" = $6,
+          "idNumber" = $7
+        RETURNING id
+      `, [
+        uuidv4(),
+        parentUserId,
+        primaryParentName.trim(),
+        primaryParentSurname.trim(),
+        primaryParentPhone.trim(),
+        primaryParentEmail.toLowerCase().trim(),
+        primaryParentIdNumber ? primaryParentIdNumber.trim() : null,
+        Boolean(hasSecondaryParent),
+        secondaryParentName ? secondaryParentName.trim() : null,
+        secondaryParentSurname ? secondaryParentSurname.trim() : null,
+        secondaryParentPhone ? secondaryParentPhone.trim() : null,
+        secondaryParentEmail ? secondaryParentEmail.toLowerCase().trim() : null,
+        secondaryParentIdNumber ? secondaryParentIdNumber.trim() : null,
+      ]);
+      const parentDbId = parentRes.rows[0]?.id;
+
+      // 2. Establish Learner Profiles & Direct Parent-Learner Relationships
+      for (const l of rawLearners) {
+        const studentNum = `TT${new Date().getFullYear()}${Math.floor(10000 + Math.random() * 90000)}`;
+        const sanitizedLearnerEmail = `${(l.learnerName || 'learner').toLowerCase().replace(/\s+/g, '')}.${(l.learnerSurname || 'makola').toLowerCase().replace(/\s+/g, '')}@thutotech.ac.za`;
+        const learnerPassHash = await bcrypt.hash('#Learner#$2026$', 10);
+
+        const learnerUserRes = await query(`
           INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           ON CONFLICT ("email") DO UPDATE SET
-            "passwordHash" = $3,
             "name" = $4,
-            "surname" = $5,
-            "phone" = $7
+            "surname" = $5
+          RETURNING id
         `, [
-          pUserId,
-          primaryParentEmail.toLowerCase().trim(),
-          pHash,
-          primaryParentName.trim(),
-          primaryParentSurname.trim(),
-          UserRole.PARENT,
+          uuidv4(),
+          sanitizedLearnerEmail,
+          learnerPassHash,
+          (l.learnerName || '').trim(),
+          (l.learnerSurname || '').trim(),
+          UserRole.LEARNER,
           primaryParentPhone.trim(),
           UserStatus.ACTIVE,
         ]);
+        const learnerUserId = learnerUserRes.rows[0]?.id;
+
+        const learnerRes = await query(`
+          INSERT INTO "learners" (
+            "id", "userId", "learnerNumber", "idNumber", "fullName", "surname",
+            "gender", "dateOfBirth", "grade", "homeLanguage", "firstAdditionalLanguage", "stream"
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT ("userId") DO UPDATE SET
+            "fullName" = $5,
+            "surname" = $6,
+            "grade" = $9
+          RETURNING id
+        `, [
+          uuidv4(),
+          learnerUserId,
+          studentNum,
+          (l.learnerIdNumber || '0000000000000').trim(),
+          (l.learnerName || '').trim(),
+          (l.learnerSurname || '').trim(),
+          l.learnerGender || null,
+          l.learnerDob ? new Date(l.learnerDob) : null,
+          (l.gradeApplyingFor || 'Grade 8').trim(),
+          (l.homeLanguage || 'Sepedi').trim(),
+          (l.firstAdditionalLanguage || 'English').trim(),
+          l.stream ? l.stream.trim() : null,
+        ]);
+        const learnerDbId = learnerRes.rows[0]?.id;
+
+        // 3. Link Parent and Child in Relational Bridge
+        if (parentDbId && learnerDbId) {
+          await query(`
+            INSERT INTO "parent_learner_relationships" ("id", "parentId", "learnerId", "relationshipType", "status")
+            VALUES ($1, $2, $3, 'PARENT', 'ACTIVE')
+            ON CONFLICT ("parentId", "learnerId") DO UPDATE SET "status" = 'ACTIVE'
+          `, [uuidv4(), parentDbId, learnerDbId]);
+        }
       }
 
-      if (hasSecondaryParent && secondaryParentEmail && secondaryParentPassword) {
-        const secHash = await bcrypt.hash(secondaryParentPassword, 10);
-        const secUserId = uuidv4();
-        await query(`
+      // 4. Secondary Parent Linking (if provided)
+      if (hasSecondaryParent && secondaryParentEmail) {
+        const secPassHash = secondaryParentPassword ? await bcrypt.hash(secondaryParentPassword, 10) : await bcrypt.hash('#Parent#$2026$', 10);
+        const secUserRes = await query(`
           INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           ON CONFLICT ("email") DO UPDATE SET
             "passwordHash" = $3,
             "name" = $4,
-            "surname" = $5,
-            "phone" = $7
+            "surname" = $5
+          RETURNING id
         `, [
-          secUserId,
+          uuidv4(),
           secondaryParentEmail.toLowerCase().trim(),
-          secHash,
+          secPassHash,
           (secondaryParentName || '').trim(),
           (secondaryParentSurname || '').trim(),
           UserRole.PARENT,
           secondaryParentPhone ? secondaryParentPhone.trim() : null,
           UserStatus.ACTIVE,
         ]);
+        const secUserId = secUserRes.rows[0]?.id;
+
+        if (secUserId) {
+          const secParentRes = await query(`
+            INSERT INTO "parents" ("id", "userId", "fullName", "surname", "phone", "email", "idNumber")
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT ("userId") DO UPDATE SET
+              "fullName" = $3,
+              "surname" = $4
+            RETURNING id
+          `, [
+            uuidv4(),
+            secUserId,
+            (secondaryParentName || '').trim(),
+            (secondaryParentSurname || '').trim(),
+            secondaryParentPhone ? secondaryParentPhone.trim() : '',
+            secondaryParentEmail.toLowerCase().trim(),
+            secondaryParentIdNumber ? secondaryParentIdNumber.trim() : null,
+          ]);
+        }
       }
 
       return res.status(201).json({
         success: true,
-        message: `Admission application submitted for ${rawLearners.length} learner(s).`,
+        message: `Admission application submitted. Parent and ${rawLearners.length} child profile(s) linked.`,
         application: {
           id: appId,
           applicationNumber,
