@@ -7,9 +7,19 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // PostgreSQL Connection Pool configuration
+const getConnectionString = () => {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  const user = process.env.DB_USER || 'postgres';
+  const pass = encodeURIComponent(process.env.DB_PASSWORD || '');
+  const host = process.env.DB_HOST || 'localhost';
+  const port = process.env.DB_PORT || '5432';
+  const name = process.env.DB_NAME || 'ThutoTech_DB';
+  return `postgresql://${user}:${pass}@${host}:${port}/${name}`;
+};
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' || (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com'))
+  connectionString: getConnectionString(),
+  ssl: (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com'))
     ? { rejectUnauthorized: false }
     : false,
   max: 20,
