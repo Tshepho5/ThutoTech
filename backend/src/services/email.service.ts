@@ -1,7 +1,27 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
+import net from 'net';
+
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 export class EmailService {
   private static transporter: nodemailer.Transporter | null = null;
+
+  private static async resolveHostToIp(host: string): Promise<string> {
+    if (net.isIP(host)) return host;
+    return new Promise((resolve) => {
+      dns.lookup(host, { family: 4 }, (err, address) => {
+        if (!err && address) {
+          resolve(address);
+        } else {
+          // Fallback to known IP or hostname if lookup fails
+          resolve(host === 'smtp.gmail.com' ? '142.251.127.109' : host);
+        }
+      });
+    });
+  }
 
   private static async getTransporter(): Promise<nodemailer.Transporter> {
     if (this.transporter) return this.transporter;
@@ -14,30 +34,24 @@ export class EmailService {
     const isGmail = smtpHost.includes('gmail') || smtpUser.includes('gmail');
     const cleanPass = smtpPass.replace(/\s+/g, '');
 
-    this.transporter = isGmail
-      ? nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: smtpUser,
-            pass: cleanPass,
-          },
-          tls: {
-            rejectUnauthorized: false,
-          },
-        })
-      : nodemailer.createTransport({
-          host: smtpHost,
-          port: smtpPort,
-          secure: smtpPort === 465,
-          connectionTimeout: 10000,
-          auth: {
-            user: smtpUser,
-            pass: cleanPass,
-          },
-          tls: {
-            rejectUnauthorized: false,
-          },
-        });
+    const resolvedHost = await this.resolveHostToIp(smtpHost);
+
+    this.transporter = nodemailer.createTransport({
+      host: resolvedHost,
+      port: 465,
+      secure: true,
+      auth: {
+        user: smtpUser,
+        pass: cleanPass,
+      },
+      tls: {
+        servername: smtpHost,
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+    });
 
     return this.transporter;
   }
