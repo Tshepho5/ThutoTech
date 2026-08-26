@@ -51,6 +51,7 @@ export function validateAdmissionApplication(req: Request, res: Response, next: 
     secondaryParentSurname,
     secondaryParentPhone,
     secondaryParentEmail,
+    learners,
     learnerName,
     learnerSurname,
     learnerIdNumber,
@@ -58,31 +59,31 @@ export function validateAdmissionApplication(req: Request, res: Response, next: 
   } = req.body;
 
   // 1. Primary Parent Validations
-  if (!primaryParentName || !StrictValidator.isOnlyLetters(primaryParentName)) {
+  if (!primaryParentName || primaryParentName.trim().length < 2) {
     errors.push({
       field: 'primaryParentName',
-      message: 'Primary Parent First Name must only contain letters. Numbers are strictly not allowed.',
+      message: 'Primary Parent First Name is required.',
     });
   }
 
-  if (!primaryParentSurname || !StrictValidator.isOnlyLetters(primaryParentSurname)) {
+  if (!primaryParentSurname || primaryParentSurname.trim().length < 2) {
     errors.push({
       field: 'primaryParentSurname',
-      message: 'Primary Parent Surname must only contain letters. Numbers are strictly not allowed.',
+      message: 'Primary Parent Surname is required.',
     });
   }
 
   if (!primaryParentPhone || !StrictValidator.isPhoneNumber(primaryParentPhone)) {
     errors.push({
       field: 'primaryParentPhone',
-      message: 'Primary Parent Phone must contain exactly 10 digits. Letters are strictly prohibited.',
+      message: 'Primary Parent Phone must contain 10 digits (e.g., 0821234567).',
     });
   }
 
-  if (!primaryParentIdNumber || !StrictValidator.isNationalID(primaryParentIdNumber)) {
+  if (!primaryParentIdNumber || primaryParentIdNumber.trim().length < 6) {
     errors.push({
       field: 'primaryParentIdNumber',
-      message: 'Primary Parent National ID must be exactly 13 digits (numbers only).',
+      message: 'Primary Parent National ID or Passport Number is required.',
     });
   }
 
@@ -95,16 +96,10 @@ export function validateAdmissionApplication(req: Request, res: Response, next: 
 
   // 2. Optional Secondary Parent Validations
   if (hasSecondaryParent) {
-    if (secondaryParentName && !StrictValidator.isOnlyLetters(secondaryParentName)) {
+    if (secondaryParentName && secondaryParentName.trim().length < 2) {
       errors.push({
         field: 'secondaryParentName',
-        message: 'Secondary Parent Name must only contain letters.',
-      });
-    }
-    if (secondaryParentSurname && !StrictValidator.isOnlyLetters(secondaryParentSurname)) {
-      errors.push({
-        field: 'secondaryParentSurname',
-        message: 'Secondary Parent Surname must only contain letters.',
+        message: 'Secondary Parent Name must contain at least 2 characters.',
       });
     }
     if (secondaryParentPhone && !StrictValidator.isPhoneNumber(secondaryParentPhone)) {
@@ -121,36 +116,43 @@ export function validateAdmissionApplication(req: Request, res: Response, next: 
     }
   }
 
-  // 3. Learner Validations
-  if (!learnerName || !StrictValidator.isOnlyLetters(learnerName)) {
-    errors.push({
-      field: 'learnerName',
-      message: 'Learner First Name must only contain letters. Numbers are strictly not allowed.',
-    });
-  }
+  // 3. Multi-Child / Learner Validations
+  const rawLearners: any[] = Array.isArray(learners) && learners.length > 0
+    ? learners
+    : (learnerName ? [{ learnerName, learnerSurname, learnerIdNumber, gradeApplyingFor }] : []);
 
-  if (!learnerSurname || !StrictValidator.isOnlyLetters(learnerSurname)) {
+  if (rawLearners.length === 0) {
     errors.push({
-      field: 'learnerSurname',
-      message: 'Learner Surname must only contain letters. Numbers are strictly not allowed.',
+      field: 'learners',
+      message: 'At least one child enrolment record is required.',
     });
-  }
-
-  if (!learnerIdNumber || !StrictValidator.isNationalID(learnerIdNumber)) {
-    errors.push({
-      field: 'learnerIdNumber',
-      message: 'Learner National ID Number must be exactly 13 numeric digits. Letters are strictly prohibited.',
+  } else {
+    rawLearners.forEach((l: any, idx: number) => {
+      if (!l.learnerName || l.learnerName.trim().length < 2) {
+        errors.push({
+          field: `learners[${idx}].learnerName`,
+          message: `Learner #${idx + 1} first name is required.`,
+        });
+      }
+      if (!l.learnerSurname || l.learnerSurname.trim().length < 2) {
+        errors.push({
+          field: `learners[${idx}].learnerSurname`,
+          message: `Learner #${idx + 1} surname is required.`,
+        });
+      }
+      if (!l.gradeApplyingFor) {
+        errors.push({
+          field: `learners[${idx}].gradeApplyingFor`,
+          message: `Grade applying for is required for Learner #${idx + 1}.`,
+        });
+      }
     });
-  }
-
-  if (!gradeApplyingFor) {
-    errors.push({ field: 'gradeApplyingFor', message: 'Grade applying for is required.' });
   }
 
   if (errors.length > 0) {
     return res.status(400).json({
       success: false,
-      message: 'Validation failed on input placeholders.',
+      message: errors[0].message || 'Validation failed on input placeholders.',
       errors,
     });
   }

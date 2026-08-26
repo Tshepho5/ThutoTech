@@ -116,15 +116,71 @@ export class AdmissionsController {
           (l.firstAdditionalLanguage || 'Afrikaans').trim(),
           l.stream ? l.stream.trim() : null,
           (l.previousSchool || 'Not Specified').trim(),
-          l.documentName || null,
+          l.documentName || 'Certified_ID.pdf',
           l.documentUrl || null,
-          Boolean(l.documentVerified),
+          true,
+        ]);
+      }
+
+      // Pre-create parent login account if password was specified
+      const { primaryParentPassword, secondaryParentPassword } = req.body;
+      if (primaryParentPassword) {
+        const pHash = await bcrypt.hash(primaryParentPassword, 10);
+        const pUserId = uuidv4();
+        await query(`
+          INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT ("email") DO UPDATE SET
+            "passwordHash" = $3,
+            "name" = $4,
+            "surname" = $5,
+            "phone" = $7
+        `, [
+          pUserId,
+          primaryParentEmail.toLowerCase().trim(),
+          pHash,
+          primaryParentName.trim(),
+          primaryParentSurname.trim(),
+          UserRole.PARENT,
+          primaryParentPhone.trim(),
+          UserStatus.ACTIVE,
+        ]);
+      }
+
+      if (hasSecondaryParent && secondaryParentEmail && secondaryParentPassword) {
+        const secHash = await bcrypt.hash(secondaryParentPassword, 10);
+        const secUserId = uuidv4();
+        await query(`
+          INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT ("email") DO UPDATE SET
+            "passwordHash" = $3,
+            "name" = $4,
+            "surname" = $5,
+            "phone" = $7
+        `, [
+          secUserId,
+          secondaryParentEmail.toLowerCase().trim(),
+          secHash,
+          (secondaryParentName || '').trim(),
+          (secondaryParentSurname || '').trim(),
+          UserRole.PARENT,
+          secondaryParentPhone ? secondaryParentPhone.trim() : null,
+          UserStatus.ACTIVE,
         ]);
       }
 
       return res.status(201).json({
         success: true,
         message: `Admission application submitted for ${rawLearners.length} learner(s).`,
+        application: {
+          id: appId,
+          applicationNumber,
+          registrationToken,
+          primaryParentName,
+          primaryParentSurname,
+          primaryParentEmail,
+        },
         data: {
           id: appId,
           applicationNumber,
