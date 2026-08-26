@@ -287,6 +287,8 @@ CREATE TABLE IF NOT EXISTS "admission_applications" (
     "primaryParentIdNumber" VARCHAR(13) NOT NULL,
     "primaryParentGender" VARCHAR(20),
     "primaryParentDob" DATE,
+    "primaryParentAge" INT,
+    "primaryParentCitizenship" VARCHAR(50),
     "primaryParentDocumentUrl" TEXT,
     -- Secondary Parent (Optional)
     "hasSecondaryParent" BOOLEAN DEFAULT FALSE,
@@ -297,6 +299,8 @@ CREATE TABLE IF NOT EXISTS "admission_applications" (
     "secondaryParentIdNumber" VARCHAR(13),
     "secondaryParentGender" VARCHAR(20),
     "secondaryParentDob" DATE,
+    "secondaryParentAge" INT,
+    "secondaryParentCitizenship" VARCHAR(50),
     "secondaryParentDocumentUrl" TEXT,
     -- Status & Token
     "status" "ApplicationStatus" DEFAULT 'SUBMITTED',
@@ -317,6 +321,7 @@ CREATE TABLE IF NOT EXISTS "application_learners" (
     "learnerGender" VARCHAR(20),
     "learnerDob" DATE,
     "learnerAge" INT,
+    "learnerCitizenship" VARCHAR(50),
     "gradeApplyingFor" VARCHAR(50) NOT NULL,
     "homeLanguage" VARCHAR(50) NOT NULL,
     "firstAdditionalLanguage" VARCHAR(50),

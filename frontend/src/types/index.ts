@@ -61,6 +61,10 @@ export interface AdmissionLearner {
   learnerName: string;
   learnerSurname: string;
   learnerIdNumber: string;
+  learnerGender?: string;
+  learnerDob?: string;
+  learnerAge?: number;
+  learnerCitizenship?: string;
   gradeApplyingFor: string;
   homeLanguage: string;
   firstAdditionalLanguage?: string;

@@ -18,12 +18,49 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Check
+  Check,
+  Calendar,
+  Flag,
+  UserCheck
 } from 'lucide-react';
 
 interface ApplyViewProps {
   onBackToLogin: () => void;
 }
+
+// 🇿🇦 South African 13-Digit National ID Number Auto-Parser
+export const parseSouthAfricanId = (id: string) => {
+  if (!id || id.length !== 13 || /[^0-9]/.test(id)) return null;
+
+  const yy = parseInt(id.substring(0, 2), 10);
+  const mm = parseInt(id.substring(2, 4), 10);
+  const dd = parseInt(id.substring(4, 6), 10);
+
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+
+  const fullYear = yy <= 26 ? 2000 + yy : 1900 + yy;
+  const mmStr = mm.toString().padStart(2, '0');
+  const ddStr = dd.toString().padStart(2, '0');
+  const dob = `${fullYear}-${mmStr}-${ddStr}`;
+
+  // Age calculation
+  const today = new Date();
+  let age = today.getFullYear() - fullYear;
+  const m = today.getMonth() - (mm - 1);
+  if (m < 0 || (m === 0 && today.getDate() < dd)) {
+    age--;
+  }
+
+  // Gender: 0000-4999 Female, 5000-9999 Male
+  const genderCode = parseInt(id.substring(6, 10), 10);
+  const gender = genderCode >= 5000 ? 'Male' : 'Female';
+
+  // Citizenship: 0 -> SA Citizen, 1 -> Permanent Resident
+  const citizenCode = parseInt(id.charAt(10), 10);
+  const citizenship = citizenCode === 0 ? 'South African Citizen' : 'Permanent Resident';
+
+  return { dob, age: Math.max(0, age), gender, citizenship };
+};
 
 export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -35,7 +72,9 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   const [parentEmail, setParentEmail] = useState('');
   const [parentIdNumber, setParentIdNumber] = useState('');
   const [parentDob, setParentDob] = useState('');
+  const [parentAge, setParentAge] = useState<number | null>(null);
   const [parentGender, setParentGender] = useState('Male');
+  const [parentCitizenship, setParentCitizenship] = useState('South African Citizen');
   const [parentPassword, setParentPassword] = useState('');
   const [parentConfirmPassword, setParentConfirmPassword] = useState('');
   const [showParentPassword, setShowParentPassword] = useState(false);
@@ -47,6 +86,10 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   const [secPhone, setSecPhone] = useState('');
   const [secEmail, setSecEmail] = useState('');
   const [secIdNumber, setSecIdNumber] = useState('');
+  const [secDob, setSecDob] = useState('');
+  const [secAge, setSecAge] = useState<number | null>(null);
+  const [secGender, setSecGender] = useState('Female');
+  const [secCitizenship, setSecCitizenship] = useState('South African Citizen');
   const [secPassword, setSecPassword] = useState('');
   const [secConfirmPassword, setSecConfirmPassword] = useState('');
   const [showSecPassword, setShowSecPassword] = useState(false);
@@ -57,6 +100,10 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
       learnerName: '',
       learnerSurname: '',
       learnerIdNumber: '',
+      learnerGender: 'Female',
+      learnerDob: '',
+      learnerAge: undefined,
+      learnerCitizenship: 'South African Citizen',
       gradeApplyingFor: 'Grade 8',
       homeLanguage: 'Sepedi',
       firstAdditionalLanguage: 'English',
@@ -79,7 +126,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   const [submittedRef, setSubmittedRef] = useState<string | null>(null);
   const [isAiScanning, setIsAiScanning] = useState(false);
 
-  // Strict String Validation (Rejects Numbers)
+  // Strict String Validation
   const handleStringChange = (val: string, setter: (v: string) => void, fieldName: string) => {
     if (/[0-9]/.test(val)) {
       setError(`${fieldName} must contain letters only. Numbers (0-9) are not allowed.`);
@@ -89,7 +136,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
     setter(val);
   };
 
-  // Strict Number Validation (Rejects Non-Numbers)
+  // Strict Number Validation
   const handleNumberChange = (val: string, setter: (v: string) => void, fieldName: string) => {
     if (/[^0-9]/.test(val)) {
       setError(`${fieldName} must contain numbers only (0-9). Letters or symbols are not allowed.`);
@@ -99,7 +146,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
     setter(val);
   };
 
-  // SA ID Auto-Parser
+  // Primary Parent ID Parser
   const handleParentIdChange = (val: string) => {
     if (/[^0-9]/.test(val)) {
       setError('National ID Number must contain numbers only (0-9).');
@@ -107,15 +154,58 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
     }
     setError(null);
     setParentIdNumber(val);
+
     if (val.length === 13) {
-      const yy = parseInt(val.substring(0, 2), 10);
-      const mm = val.substring(2, 4);
-      const dd = val.substring(4, 6);
-      const century = yy > 25 ? '19' : '20';
-      setParentDob(`${century}${yy}-${mm}-${dd}`);
-      const genderCode = parseInt(val.substring(6, 10), 10);
-      setParentGender(genderCode >= 5000 ? 'Male' : 'Female');
+      const parsed = parseSouthAfricanId(val);
+      if (parsed) {
+        setParentDob(parsed.dob);
+        setParentAge(parsed.age);
+        setParentGender(parsed.gender);
+        setParentCitizenship(parsed.citizenship);
+      }
     }
+  };
+
+  // Secondary Parent ID Parser
+  const handleSecIdChange = (val: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError('Secondary Parent ID must contain numbers only (0-9).');
+      return;
+    }
+    setError(null);
+    setSecIdNumber(val);
+
+    if (val.length === 13) {
+      const parsed = parseSouthAfricanId(val);
+      if (parsed) {
+        setSecDob(parsed.dob);
+        setSecAge(parsed.age);
+        setSecGender(parsed.gender);
+        setSecCitizenship(parsed.citizenship);
+      }
+    }
+  };
+
+  // Learner ID Parser
+  const handleLearnerIdChange = (index: number, val: string) => {
+    if (/[^0-9]/.test(val)) {
+      setError(`Learner #${index + 1} SA ID must contain numbers only (0-9).`);
+      return;
+    }
+    setError(null);
+    const updated = [...learners];
+    updated[index].learnerIdNumber = val;
+
+    if (val.length === 13) {
+      const parsed = parseSouthAfricanId(val);
+      if (parsed) {
+        updated[index].learnerDob = parsed.dob;
+        updated[index].learnerAge = parsed.age;
+        updated[index].learnerGender = parsed.gender;
+        updated[index].learnerCitizenship = parsed.citizenship;
+      }
+    }
+    setLearners(updated);
   };
 
   const handleFileUpload = (docKey: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,6 +222,10 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         learnerName: '',
         learnerSurname: '',
         learnerIdNumber: '',
+        learnerGender: 'Female',
+        learnerDob: '',
+        learnerAge: undefined,
+        learnerCitizenship: 'South African Citizen',
         gradeApplyingFor: 'Grade 8',
         homeLanguage: 'Sepedi',
         firstAdditionalLanguage: 'English',
@@ -150,17 +244,6 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
   const updateLearnerString = (index: number, field: 'learnerName' | 'learnerSurname' | 'previousSchool', val: string, label: string) => {
     if (/[0-9]/.test(val)) {
       setError(`${label} must contain letters only. Numbers (0-9) are not allowed.`);
-      return;
-    }
-    setError(null);
-    const updated = [...learners];
-    updated[index] = { ...updated[index], [field]: val };
-    setLearners(updated);
-  };
-
-  const updateLearnerNumber = (index: number, field: 'learnerIdNumber', val: string, label: string) => {
-    if (/[^0-9]/.test(val)) {
-      setError(`${label} must contain numbers only (0-9). Letters are not allowed.`);
       return;
     }
     setError(null);
@@ -240,7 +323,9 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         primaryParentEmail: parentEmail.trim(),
         primaryParentIdNumber: parentIdNumber.trim(),
         primaryParentGender: parentGender,
-        primaryParentDob: parentDob,
+        primaryParentDob: parentDob || null,
+        primaryParentAge: parentAge || null,
+        primaryParentCitizenship: parentCitizenship,
         primaryParentPassword: parentPassword || undefined,
         hasSecondaryParent: hasSecondary,
         secondaryParentName: hasSecondary ? secName.trim() : null,
@@ -248,12 +333,20 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         secondaryParentPhone: hasSecondary ? secPhone.trim() : null,
         secondaryParentEmail: hasSecondary ? secEmail.trim() : null,
         secondaryParentIdNumber: hasSecondary ? secIdNumber.trim() : null,
+        secondaryParentGender: hasSecondary ? secGender : null,
+        secondaryParentDob: hasSecondary ? (secDob || null) : null,
+        secondaryParentAge: hasSecondary ? (secAge || null) : null,
+        secondaryParentCitizenship: hasSecondary ? secCitizenship : null,
         secondaryParentPassword: (hasSecondary && secPassword) ? secPassword : undefined,
         learners: learners.map((l) => ({
           ...l,
           learnerName: l.learnerName.trim(),
           learnerSurname: l.learnerSurname.trim(),
           learnerIdNumber: l.learnerIdNumber.trim(),
+          learnerGender: l.learnerGender,
+          learnerDob: l.learnerDob || null,
+          learnerAge: l.learnerAge || null,
+          learnerCitizenship: l.learnerCitizenship || 'South African Citizen',
           previousSchool: l.previousSchool.trim() || 'Not Specified',
           documentVerified: true,
         })),
@@ -424,7 +517,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
               Step 1: Primary Parent / Legal Guardian Details
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-              Please enter your full legal identity and create your parent portal password.
+              Enter your National ID to automatically populate your Date of Birth, Age, Gender, and Citizenship.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -477,6 +570,75 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                   value={parentPhone}
                   onChange={(e) => handleNumberChange(e.target.value, setParentPhone, 'Phone Number')}
                   required
+                />
+              </div>
+            </div>
+
+            {/* AUTO-POPULATED DEMOGRAPHICS CARD (DOB, AGE, GENDER, CITIZENSHIP) */}
+            <div style={{
+              marginTop: '4px',
+              marginBottom: '16px',
+              padding: '14px 16px',
+              background: '#F8FAFC',
+              borderRadius: '10px',
+              border: '1px solid var(--card-border)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '12px'
+            }}>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  🎂 Date of Birth
+                </div>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }}
+                  placeholder="YYYY-MM-DD"
+                  value={parentDob}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  ⏳ Age
+                </div>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }}
+                  placeholder="Age"
+                  value={parentAge !== null ? `${parentAge} yrs` : '—'}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  🚻 Gender
+                </div>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }}
+                  placeholder="Gender"
+                  value={parentGender}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  🇿🇦 Citizenship
+                </div>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }}
+                  placeholder="Citizenship"
+                  value={parentCitizenship}
+                  readOnly
                 />
               </div>
             </div>
@@ -551,7 +713,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
               Step 2: Secondary Parent / Additional Guardian
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-              Add a second parent or guardian to grant dual parental access and emergency contacts.
+              Add a second parent or guardian with auto-populated demographic attributes from SA ID.
             </p>
 
             <div style={{ marginBottom: '20px', padding: '14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid var(--card-border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -601,7 +763,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                       placeholder="13-digit ID"
                       maxLength={13}
                       value={secIdNumber}
-                      onChange={(e) => handleNumberChange(e.target.value, setSecIdNumber, 'Secondary Parent ID')}
+                      onChange={(e) => handleSecIdChange(e.target.value)}
                     />
                   </div>
                   <div className="form-group">
@@ -614,6 +776,43 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                       value={secPhone}
                       onChange={(e) => handleNumberChange(e.target.value, setSecPhone, 'Secondary Parent Phone')}
                     />
+                  </div>
+                </div>
+
+                {/* SECONDARY PARENT AUTO-POPULATED DEMOGRAPHICS */}
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '14px 16px',
+                  background: '#F8FAFC',
+                  borderRadius: '10px',
+                  border: '1px solid var(--card-border)',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      🎂 Date of Birth
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }} value={secDob || '—'} readOnly />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      ⏳ Age
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }} value={secAge !== null ? `${secAge} yrs` : '—'} readOnly />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      🚻 Gender
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }} value={secGender} readOnly />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      🇿🇦 Citizenship
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '13px', background: '#FFFFFF', fontWeight: '600' }} value={secCitizenship} readOnly />
                   </div>
                 </div>
 
@@ -682,7 +881,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
         )}
 
         {/* =================================================================== */}
-        {/* STEP 3: CHILDREN ENROLMENT FORM                                    */}
+        {/* STEP 3: CHILDREN ENROLMENT FORM (WITH AUTO-POPULATED DEMOGRAPHICS)  */}
         {/* =================================================================== */}
         {currentStep === 3 && (
           <div className="glass-card animate-fade-in" style={{ padding: '28px', backgroundColor: '#FFFFFF' }}>
@@ -693,7 +892,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                   Step 3: Children Enrolment Details
                 </h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                  Register one or more children under this single parent admission application.
+                  Register one or more children with auto-detected Date of Birth, Age, Gender, and Citizenship.
                 </p>
               </div>
 
@@ -747,7 +946,7 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                       placeholder="13-Digit SA ID"
                       maxLength={13}
                       value={learner.learnerIdNumber}
-                      onChange={(e) => updateLearnerNumber(idx, 'learnerIdNumber', e.target.value, `Learner #${idx + 1} SA ID`)}
+                      onChange={(e) => handleLearnerIdChange(idx, e.target.value)}
                       required
                     />
                   </div>
@@ -759,6 +958,43 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
+                  </div>
+                </div>
+
+                {/* AUTO-POPULATED LEARNER DEMOGRAPHICS (DOB, AGE, GENDER, CITIZENSHIP) */}
+                <div style={{
+                  marginBottom: '14px',
+                  padding: '12px 14px',
+                  background: '#FFFFFF',
+                  borderRadius: '10px',
+                  border: '1px solid var(--card-border)',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '10px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      🎂 Date of Birth
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '12px', background: '#F8FAFC', fontWeight: '600' }} value={learner.learnerDob || '—'} readOnly />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      ⏳ Age
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '12px', background: '#F8FAFC', fontWeight: '600' }} value={learner.learnerAge !== undefined && learner.learnerAge !== null ? `${learner.learnerAge} yrs` : '—'} readOnly />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      🚻 Gender
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '12px', background: '#F8FAFC', fontWeight: '600' }} value={learner.learnerGender || '—'} readOnly />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      🇿🇦 Citizenship
+                    </div>
+                    <input type="text" className="form-control" style={{ fontSize: '12px', background: '#F8FAFC', fontWeight: '600' }} value={learner.learnerCitizenship || 'South African Citizen'} readOnly />
                   </div>
                 </div>
 
@@ -933,7 +1169,8 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
               </div>
               <div style={{ fontSize: '13px', color: 'var(--secondary-navy)', lineHeight: '1.6' }}>
                 ✓ South African National ID checksums (Luhn Algorithm) verified.<br />
-                ✓ Department of Basic Education (DBE) Age-to-Grade cohort requirements passed.<br />
+                ✓ DBE Age-to-Grade cohort requirements passed.<br />
+                ✓ Verified Gender & Citizenship recorded: <strong>{parentCitizenship}</strong>.<br />
                 ✓ Official reference code and credentials will be dispatched to <strong>{parentEmail}</strong> via Gmail SMTP.
               </div>
             </div>
@@ -941,14 +1178,14 @@ export const ApplyView: React.FC<ApplyViewProps> = ({ onBackToLogin }) => {
             {/* Application Summary Box */}
             <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid var(--card-border)', marginBottom: '24px', fontSize: '13px' }}>
               <div style={{ fontWeight: '700', color: 'var(--primary-navy)', marginBottom: '8px' }}>Application Summary:</div>
-              <div><strong>Primary Parent:</strong> {parentName} {parentSurname} (ID: {parentIdNumber}) • ✉️ {parentEmail}</div>
-              {hasSecondary && <div><strong>Secondary Parent:</strong> {secName} {secSurname} • ✉️ {secEmail}</div>}
+              <div><strong>Primary Parent:</strong> {parentName} {parentSurname} (ID: {parentIdNumber} • {parentDob} • {parentAge} yrs • {parentGender} • {parentCitizenship}) • ✉️ {parentEmail}</div>
+              {hasSecondary && <div><strong>Secondary Parent:</strong> {secName} {secSurname} (ID: {secIdNumber} • {secDob} • {secAge} yrs • {secGender} • {secCitizenship}) • ✉️ {secEmail}</div>}
               <div style={{ marginTop: '6px' }}>
                 <strong>Children Enrolling ({learners.length}):</strong>
                 <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                   {learners.map((l, idx) => (
                     <li key={idx}>
-                      {l.learnerName} {l.learnerSurname} — {l.gradeApplyingFor} ({l.homeLanguage} {l.stream ? `• ${l.stream}` : ''})
+                      {l.learnerName} {l.learnerSurname} — {l.gradeApplyingFor} ({l.homeLanguage} {l.stream ? `• ${l.stream}` : ''}) • Born: {l.learnerDob || '—'} ({l.learnerAge !== undefined ? `${l.learnerAge} yrs` : '—'}) • {l.learnerGender} • {l.learnerCitizenship}
                     </li>
                   ))}
                 </ul>

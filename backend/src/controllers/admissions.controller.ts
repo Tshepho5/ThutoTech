@@ -16,6 +16,8 @@ export class AdmissionsController {
         primaryParentIdNumber,
         primaryParentGender,
         primaryParentDob,
+        primaryParentAge,
+        primaryParentCitizenship,
         primaryParentDocumentUrl,
         hasSecondaryParent,
         secondaryParentName,
@@ -25,6 +27,8 @@ export class AdmissionsController {
         secondaryParentIdNumber,
         secondaryParentGender,
         secondaryParentDob,
+        secondaryParentAge,
+        secondaryParentCitizenship,
         secondaryParentDocumentUrl,
         learners,
         learnerName,
@@ -60,12 +64,13 @@ export class AdmissionsController {
         INSERT INTO "admission_applications" (
           "id", "applicationNumber", "primaryParentName", "primaryParentSurname",
           "primaryParentPhone", "primaryParentEmail", "primaryParentIdNumber", "primaryParentGender",
-          "primaryParentDob", "primaryParentDocumentUrl", "hasSecondaryParent", "secondaryParentName",
-          "secondaryParentSurname", "secondaryParentPhone", "secondaryParentEmail", "secondaryParentIdNumber",
-          "secondaryParentGender", "secondaryParentDob", "secondaryParentDocumentUrl", "status", "registrationToken"
+          "primaryParentDob", "primaryParentAge", "primaryParentCitizenship", "primaryParentDocumentUrl",
+          "hasSecondaryParent", "secondaryParentName", "secondaryParentSurname", "secondaryParentPhone",
+          "secondaryParentEmail", "secondaryParentIdNumber", "secondaryParentGender", "secondaryParentDob",
+          "secondaryParentAge", "secondaryParentCitizenship", "secondaryParentDocumentUrl", "status", "registrationToken"
         )
         VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
         )
       `, [
         appId,
@@ -77,6 +82,8 @@ export class AdmissionsController {
         primaryParentIdNumber ? primaryParentIdNumber.trim() : null,
         primaryParentGender || null,
         primaryParentDob ? new Date(primaryParentDob) : null,
+        primaryParentAge ? Number(primaryParentAge) : null,
+        primaryParentCitizenship || 'South African Citizen',
         primaryParentDocumentUrl || null,
         Boolean(hasSecondaryParent),
         secondaryParentName ? secondaryParentName.trim() : null,
@@ -86,6 +93,8 @@ export class AdmissionsController {
         secondaryParentIdNumber ? secondaryParentIdNumber.trim() : null,
         secondaryParentGender || null,
         secondaryParentDob ? new Date(secondaryParentDob) : null,
+        secondaryParentAge ? Number(secondaryParentAge) : null,
+        secondaryParentCitizenship || 'South African Citizen',
         secondaryParentDocumentUrl || null,
         ApplicationStatus.SUBMITTED,
         registrationToken,
@@ -96,11 +105,11 @@ export class AdmissionsController {
         await query(`
           INSERT INTO "application_learners" (
             "id", "applicationId", "learnerName", "learnerSurname", "learnerIdNumber",
-            "learnerGender", "learnerDob", "learnerAge", "gradeApplyingFor", "homeLanguage",
+            "learnerGender", "learnerDob", "learnerAge", "learnerCitizenship", "gradeApplyingFor", "homeLanguage",
             "firstAdditionalLanguage", "stream", "previousSchool", "documentName", "documentUrl", "documentVerified"
           )
           VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
           )
         `, [
           uuidv4(),
@@ -111,6 +120,7 @@ export class AdmissionsController {
           l.learnerGender || null,
           l.learnerDob ? new Date(l.learnerDob) : null,
           l.learnerAge ? Number(l.learnerAge) : null,
+          l.learnerCitizenship || 'South African Citizen',
           (l.gradeApplyingFor || 'Grade 8').trim(),
           (l.homeLanguage || 'English').trim(),
           (l.firstAdditionalLanguage || 'Afrikaans').trim(),
