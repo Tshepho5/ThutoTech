@@ -19,7 +19,7 @@ export class AdminController {
     try {
       const logsRes = await query(`
         SELECT * FROM "audit_logs"
-        ORDER BY "timestamp" DESC
+        ORDER BY "createdAt" DESC
         LIMIT 100
       `);
       return res.json({ success: true, data: logsRes.rows, auditLogs: logsRes.rows });

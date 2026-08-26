@@ -60,7 +60,7 @@ export async function connectDatabase() {
       await pool.query(q).catch((e) => console.warn('Enum notice:', e.message));
     }
 
-    // 3. Core Tables DDL (CREATE IF NOT EXISTS)
+    // 3. Core Tables DDL (CREATE TABLE IF NOT EXISTS)
     const tableQueries = [
       `CREATE TABLE IF NOT EXISTS "schools" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -134,15 +134,15 @@ export async function connectDatabase() {
       `CREATE TABLE IF NOT EXISTS "learners" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
         "userId" TEXT UNIQUE NOT NULL,
-        "learnerNumber" VARCHAR(50) UNIQUE NOT NULL,
-        "idNumber" VARCHAR(13) UNIQUE NOT NULL,
+        "learnerNumber" VARCHAR(50) UNIQUE,
+        "idNumber" VARCHAR(13),
         "fullName" VARCHAR(150) NOT NULL,
         "surname" VARCHAR(150) NOT NULL,
         "gender" VARCHAR(20),
         "dateOfBirth" DATE,
         "grade" VARCHAR(50) NOT NULL,
         "classId" TEXT,
-        "homeLanguage" VARCHAR(50) NOT NULL DEFAULT 'Sepedi',
+        "homeLanguage" VARCHAR(50) DEFAULT 'Sepedi',
         "firstAdditionalLanguage" VARCHAR(50) DEFAULT 'English',
         "stream" VARCHAR(50),
         "attendancePercentage" NUMERIC(5,2) DEFAULT 100.00,
@@ -312,9 +312,11 @@ export async function connectDatabase() {
       await pool.query(tbl).catch((e) => console.warn('Table initialization notice:', e.message));
     }
 
-    // 4. Guaranteed Column Sync (ALTER TABLE ADD COLUMN IF NOT EXISTS for all tables)
+    // 4. Comprehensive Column Synchronization (ALTER TABLE ADD COLUMN IF NOT EXISTS for ALL tables)
     const columnSyncQueries = [
-      // Users table sync
+      // 1. users
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`,
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT;`,
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "name" VARCHAR(100);`,
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "surname" VARCHAR(100);`,
@@ -325,30 +327,207 @@ export async function connectDatabase() {
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "schoolId" TEXT;`,
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
-
-      // Migrate legacy password column if exists
       `DO $$ BEGIN
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password') THEN
           UPDATE "users" SET "passwordHash" = "password" WHERE "passwordHash" IS NULL;
         END IF;
       END $$;`,
 
-      // Admission Applications sync
-      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentAge" INT;`,
-      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentCitizenship" VARCHAR(50);`,
-      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentAge" INT;`,
-      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentCitizenship" VARCHAR(50);`,
-
-      // Application Learners sync
-      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerAge" INT;`,
-      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerCitizenship" VARCHAR(50);`,
-
-      // Learners table sync
+      // 2. learners
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "learnerNumber" VARCHAR(50);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "idNumber" VARCHAR(13);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "fullName" VARCHAR(150);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "surname" VARCHAR(150);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "gender" VARCHAR(20);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "dateOfBirth" DATE;`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "grade" VARCHAR(50);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "classId" TEXT;`,
       `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "homeLanguage" VARCHAR(50) DEFAULT 'Sepedi';`,
       `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "firstAdditionalLanguage" VARCHAR(50) DEFAULT 'English';`,
       `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "stream" VARCHAR(50);`,
       `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "attendancePercentage" NUMERIC(5,2) DEFAULT 100.00;`,
-      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "overallAverage" NUMERIC(5,2) DEFAULT 0.00;`
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "overallAverage" NUMERIC(5,2) DEFAULT 0.00;`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='learners' AND column_name='learner_number') THEN
+          UPDATE "learners" SET "learnerNumber" = "learner_number" WHERE "learnerNumber" IS NULL;
+        END IF;
+      END $$;`,
+
+      // 3. parents
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "fullName" VARCHAR(150);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "surname" VARCHAR(150);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "phone" VARCHAR(20);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "idNumber" VARCHAR(13);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "hasSecondaryParent" BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "secondaryParentFullName" VARCHAR(150);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "secondaryParentSurname" VARCHAR(150);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "secondaryParentPhone" VARCHAR(20);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "secondaryParentEmail" VARCHAR(255);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "secondaryParentIdNumber" VARCHAR(13);`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "parents" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 4. teachers
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "fullName" VARCHAR(150);`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "surname" VARCHAR(150);`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "employeeNumber" VARCHAR(50);`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "qualification" VARCHAR(255);`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "specialization" VARCHAR(255);`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "schoolId" TEXT;`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "teachers" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 5. admission_applications
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "applicationNumber" VARCHAR(50);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentName" VARCHAR(100);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentSurname" VARCHAR(100);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentPhone" VARCHAR(20);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentEmail" VARCHAR(255);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentIdNumber" VARCHAR(13);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentGender" VARCHAR(20);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentDob" DATE;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentAge" INT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentCitizenship" VARCHAR(50);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentDocumentUrl" TEXT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "hasSecondaryParent" BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentName" VARCHAR(100);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentSurname" VARCHAR(100);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentPhone" VARCHAR(20);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentEmail" VARCHAR(255);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentIdNumber" VARCHAR(13);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentGender" VARCHAR(20);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentDob" DATE;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentAge" INT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentCitizenship" VARCHAR(50);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentDocumentUrl" TEXT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "status" VARCHAR(50) DEFAULT 'SUBMITTED';`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "registrationToken" VARCHAR(50);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "reviewerNotes" TEXT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMP WITH TIME ZONE;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 6. application_learners
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "applicationId" TEXT;`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerName" VARCHAR(100);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerSurname" VARCHAR(100);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerIdNumber" VARCHAR(13);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerGender" VARCHAR(20);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerDob" DATE;`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerAge" INT;`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerCitizenship" VARCHAR(50);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "gradeApplyingFor" VARCHAR(50);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "homeLanguage" VARCHAR(50);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "firstAdditionalLanguage" VARCHAR(50);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "stream" VARCHAR(50);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "previousSchool" VARCHAR(255);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "documentUrl" TEXT;`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "documentName" VARCHAR(255);`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "documentVerified" BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 7. parent_learner_relationships
+      `ALTER TABLE "parent_learner_relationships" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "parent_learner_relationships" ADD COLUMN IF NOT EXISTS "parentId" TEXT;`,
+      `ALTER TABLE "parent_learner_relationships" ADD COLUMN IF NOT EXISTS "learnerId" TEXT;`,
+      `ALTER TABLE "parent_learner_relationships" ADD COLUMN IF NOT EXISTS "relationshipType" VARCHAR(50) DEFAULT 'PARENT';`,
+      `ALTER TABLE "parent_learner_relationships" ADD COLUMN IF NOT EXISTS "status" VARCHAR(20) DEFAULT 'ACTIVE';`,
+      `ALTER TABLE "parent_learner_relationships" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 8. subjects
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "name" VARCHAR(150);`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "code" VARCHAR(50);`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "grade" VARCHAR(50);`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "category" VARCHAR(100);`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "credits" INT DEFAULT 1;`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "teacherId" TEXT;`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "schoolId" TEXT;`,
+      `ALTER TABLE "subjects" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 9. assignments
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "title" VARCHAR(255);`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "description" TEXT;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "subjectId" TEXT;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "classId" TEXT;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "teacherId" TEXT;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP WITH TIME ZONE;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "maxMarks" INT DEFAULT 100;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "status" VARCHAR(50) DEFAULT 'PUBLISHED';`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "attachmentUrl" TEXT;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "assignments" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 10. submissions
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "assignmentId" TEXT;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "learnerId" TEXT;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "submissionUrl" TEXT;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP WITH TIME ZONE;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "status" VARCHAR(50) DEFAULT 'NOT_SUBMITTED';`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "mark" INT;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "feedback" TEXT;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "submissions" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 11. attendance_records
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "date" DATE;`,
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "classId" TEXT;`,
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "learnerId" TEXT;`,
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "status" VARCHAR(50) DEFAULT 'PRESENT';`,
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "reason" TEXT;`,
+      `ALTER TABLE "attendance_records" ADD COLUMN IF NOT EXISTS "recordedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 12. audit_logs
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "userName" VARCHAR(150);`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "role" VARCHAR(50);`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "action" VARCHAR(100);`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "entity" VARCHAR(255);`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "details" TEXT;`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "ipAddress" VARCHAR(50);`,
+      `ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 13. app_notifications
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "recipientUserId" TEXT;`,
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "title" VARCHAR(255);`,
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "body" TEXT;`,
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "category" VARCHAR(50) DEFAULT 'SYSTEM';`,
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "isRead" BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE "app_notifications" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 14. announcements
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "title" VARCHAR(255);`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "content" TEXT;`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "authorId" TEXT;`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "authorName" VARCHAR(150);`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "priority" VARCHAR(50) DEFAULT 'NORMAL';`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "audience" VARCHAR(50) DEFAULT 'ALL';`,
+      `ALTER TABLE "announcements" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // 15. password_reset_otps
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "id" TEXT DEFAULT gen_random_uuid();`,
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`,
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "otpHash" TEXT;`,
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP WITH TIME ZONE;`,
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "used" BOOLEAN DEFAULT FALSE;`,
+      `ALTER TABLE "password_reset_otps" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`
     ];
 
     for (const syncQ of columnSyncQueries) {
