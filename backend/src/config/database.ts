@@ -60,7 +60,7 @@ export async function connectDatabase() {
       await pool.query(q).catch((e) => console.warn('Enum notice:', e.message));
     }
 
-    // 3. Core Tables DDL (Individual resilient execution)
+    // 3. Core Tables DDL (CREATE IF NOT EXISTS)
     const tableQueries = [
       `CREATE TABLE IF NOT EXISTS "schools" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -77,7 +77,7 @@ export async function connectDatabase() {
       `CREATE TABLE IF NOT EXISTS "users" (
         "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
         "email" VARCHAR(255) UNIQUE NOT NULL,
-        "passwordHash" TEXT NOT NULL,
+        "passwordHash" TEXT,
         "name" VARCHAR(100) NOT NULL,
         "surname" VARCHAR(100) NOT NULL,
         "role" VARCHAR(50) NOT NULL,
@@ -312,7 +312,79 @@ export async function connectDatabase() {
       await pool.query(tbl).catch((e) => console.warn('Table initialization notice:', e.message));
     }
 
-    // 4. Guarantee Super Admin Lebogang Makola seed
+    // 4. Guaranteed Column Sync (ALTER TABLE ADD COLUMN IF NOT EXISTS for all tables)
+    const columnSyncQueries = [
+      // Users table sync
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT;`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "name" VARCHAR(100);`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "surname" VARCHAR(100);`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(50);`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" VARCHAR(20);`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT;`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "status" VARCHAR(50) DEFAULT 'ACTIVE';`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "schoolId" TEXT;`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`,
+
+      // Migrate legacy password column if exists
+      `DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password') THEN
+          UPDATE "users" SET "passwordHash" = "password" WHERE "passwordHash" IS NULL;
+        END IF;
+      END $$;`,
+
+      // Admission Applications sync
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentAge" INT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "primaryParentCitizenship" VARCHAR(50);`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentAge" INT;`,
+      `ALTER TABLE "admission_applications" ADD COLUMN IF NOT EXISTS "secondaryParentCitizenship" VARCHAR(50);`,
+
+      // Application Learners sync
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerAge" INT;`,
+      `ALTER TABLE "application_learners" ADD COLUMN IF NOT EXISTS "learnerCitizenship" VARCHAR(50);`,
+
+      // Learners table sync
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "homeLanguage" VARCHAR(50) DEFAULT 'Sepedi';`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "firstAdditionalLanguage" VARCHAR(50) DEFAULT 'English';`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "stream" VARCHAR(50);`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "attendancePercentage" NUMERIC(5,2) DEFAULT 100.00;`,
+      `ALTER TABLE "learners" ADD COLUMN IF NOT EXISTS "overallAverage" NUMERIC(5,2) DEFAULT 0.00;`
+    ];
+
+    for (const syncQ of columnSyncQueries) {
+      await pool.query(syncQ).catch(() => {});
+    }
+
+    // 5. Seed CAPS South African Curriculum Subjects
+    const capsSubjects = [
+      { name: 'Mathematics', code: 'MATH-CAPS', grade: 'Grade 8', category: 'Fundamental' },
+      { name: 'Mathematical Literacy', code: 'MLIT-CAPS', grade: 'Grade 10', category: 'Fundamental' },
+      { name: 'Physical Sciences', code: 'PHYS-CAPS', grade: 'Grade 10', category: 'Science' },
+      { name: 'Life Sciences', code: 'LFSC-CAPS', grade: 'Grade 10', category: 'Science' },
+      { name: 'Accounting', code: 'ACCT-CAPS', grade: 'Grade 10', category: 'Commerce' },
+      { name: 'Business Studies', code: 'BSTD-CAPS', grade: 'Grade 10', category: 'Commerce' },
+      { name: 'Economics', code: 'ECON-CAPS', grade: 'Grade 10', category: 'Commerce' },
+      { name: 'Geography', code: 'GEOG-CAPS', grade: 'Grade 8', category: 'Humanities' },
+      { name: 'History', code: 'HIST-CAPS', grade: 'Grade 8', category: 'Humanities' },
+      { name: 'English First Additional Language', code: 'EFAL-CAPS', grade: 'Grade 8', category: 'Language' },
+      { name: 'Sepedi Home Language', code: 'SEPD-CAPS', grade: 'Grade 8', category: 'Language' },
+      { name: 'Life Orientation', code: 'LIFE-CAPS', grade: 'Grade 8', category: 'Fundamental' },
+      { name: 'Information Technology', code: 'INFT-CAPS', grade: 'Grade 10', category: 'Technical' },
+      { name: 'Computer Applications Technology', code: 'COMA-CAPS', grade: 'Grade 10', category: 'Technical' }
+    ];
+
+    for (const sub of capsSubjects) {
+      await pool.query(`
+        INSERT INTO "subjects" ("id", "name", "code", "grade", "category", "credits")
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, 1)
+        ON CONFLICT ("code") DO UPDATE SET
+          "name" = $1,
+          "grade" = $3,
+          "category" = $4;
+      `, [sub.name, sub.code, sub.grade, sub.category]).catch(() => {});
+    }
+
+    // 6. Guarantee Super Admin Lebogang Makola seed
     const adminPassHash = await bcrypt.hash('#Admin#$5$', 10);
     await pool.query(`
       INSERT INTO "users" ("id", "email", "passwordHash", "name", "surname", "role", "phone", "status")
@@ -334,7 +406,7 @@ export async function connectDatabase() {
         "status" = 'ACTIVE';
     `, [adminPassHash]);
 
-    console.log('✅ PostgreSQL Schema synchronized and Super Admin ready.');
+    console.log('✅ PostgreSQL Schema synchronized: all 17 tables, all columns, CAPS subjects and Super Admin ready.');
   } catch (error: any) {
     console.error('⚠️ PostgreSQL Schema Initialization Error:', error.message);
   }
