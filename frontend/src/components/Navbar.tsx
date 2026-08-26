@@ -44,14 +44,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenDownload, 
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ color: 'white', fontSize: '18px', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>
+              <span className="navbar-brand-text" style={{ color: 'white', fontSize: '18px', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>
                 ThutoTech
               </span>
               <span className="badge badge-green" style={{ fontSize: '10px', padding: '2px 6px' }}>
                 ECOSYSTEM
               </span>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '11px', letterSpacing: '0.04em' }}>
+            <div className="navbar-tagline" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '11px', letterSpacing: '0.04em' }}>
               LEARN • CONNECT • EMPOWER
             </div>
           </div>

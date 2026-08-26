@@ -239,3 +239,160 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
+
+/* ==========================================================================
+   📱 COMPREHENSIVE RESPONSIVE STYLES FOR SMALL SCREENS & MOBILE DEVICES
+   ========================================================================== */
+
+/* Universal Responsive Container Helpers */
+.container-responsive {
+  width: 100%;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Grid Layout Responsive Utilities */
+.grid-responsive-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.grid-responsive-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.grid-responsive-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* Medium Screens (Tablets / Compact Laptops - <= 1024px) */
+@media (max-width: 1024px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-responsive-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Small Screens (Tablets & Mobile Landscape - <= 768px) */
+@media (max-width: 768px) {
+  /* Typography Scaling */
+  h1 { font-size: 24px !important; }
+  h2 { font-size: 20px !important; }
+  h3 { font-size: 17px !important; }
+  h4 { font-size: 15px !important; }
+
+  /* Input fields prevent iOS auto-zoom */
+  .form-control, input, select, textarea {
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* Cards & Panels */
+  .glass-card, .card {
+    padding: 16px 14px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  /* Collapse Multi-column Grids to Single Column */
+  .grid-responsive-2,
+  .grid-responsive-3,
+  .grid-responsive-4,
+  [style*="display: grid"],
+  [style*="display:grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Flex containers that might overflow */
+  .flex-responsive-wrap,
+  .dashboard-header,
+  .action-bar {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+
+  /* Modal Dialogs */
+  .modal-container,
+  [role="dialog"] > div,
+  .glass-card[style*="max-width"],
+  .glass-card[style*="maxWidth"] {
+    max-width: 95vw !important;
+    width: 95vw !important;
+    margin: 12px auto !important;
+    padding: 16px 12px !important;
+  }
+
+  /* Horizontal Scrolling for Data Tables */
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* Stepper / Wizard header buttons */
+  .step-wizard-bar {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Navbar Adjustments */
+  header div[style*="maxWidth: '1300px'"],
+  header div[style*="max-width: 1300px"] {
+    padding: 8px 12px !important;
+  }
+}
+
+/* Extra Small Screens (Mobile Portrait - <= 480px) */
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* Buttons on Mobile */
+  .btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .btn-full-mobile {
+    width: 100% !important;
+  }
+
+  /* Navigation elements */
+  .navbar-brand-text {
+    font-size: 16px !important;
+  }
+  
+  .navbar-tagline {
+    display: none !important;
+  }
+
+  /* Form groups */
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  /* Badges */
+  .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
